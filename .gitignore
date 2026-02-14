@@ -1,0 +1,8 @@
+# Local configuration
+*.log
+.DS_Store
+node_modules/
+.env
+.vercel/
+.vercel
+docs/
