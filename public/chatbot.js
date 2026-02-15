@@ -113,8 +113,8 @@ class DoorStoreChatbot {
         await this.showTypingIndicator();
 
         let response;
-        // Try Groq API first if enabled
-        if (CONFIG.api.enabled && CONFIG.api.apiKey) {
+        // Try Groq API first if enabled (Proxy handles the secret key)
+        if (CONFIG.api.enabled) {
             // Search for relevant products in InSales catalog
             const relevantProducts = typeof INSALES_BRIDGE !== 'undefined' ? INSALES_BRIDGE.findProducts(message) : [];
             const productsContext = relevantProducts.length > 0 ? INSALES_BRIDGE.formatProductsForAI(relevantProducts) : null;
@@ -534,7 +534,9 @@ class DoorStoreChatbot {
     }
 }
 
-// Initialize chatbot when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize chatbot (check if DOM is already ready)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => new DoorStoreChatbot());
+} else {
     new DoorStoreChatbot();
-});
+}
