@@ -521,12 +521,14 @@ class DoorStoreChatbot {
         const cleanPhone = phone.replace(/[\s\(\)-]/g, '');
 
         // 1. Match the specific configured phone number exactly
+        // Lookbehind prevents matching if already inside an <a> tag (preceded by href=", ">", or :)
         const escapedPhone = phone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const specificPhoneRegex = new RegExp(`(?<!href="|">)${escapedPhone}`, 'g');
+        const specificPhoneRegex = new RegExp(`(?<!href="|">|:|=")${escapedPhone}`, 'g');
         text = text.replace(specificPhoneRegex, `<a href="tel:${cleanPhone}" class="contact-link">${phone}</a>`);
 
         // 2. Match general Russian phone formats as a fallback
-        const generalPhoneRegex = /(?<!href="|">|\d)(\+7|8)[\s(]?\d{3}[)\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}(?!\d)/g;
+        // Lookbehind prevents matching inside existing tags or attributes
+        const generalPhoneRegex = /(?<!href="|">|:|=|"|\d)(\+7|8)[\s(]?\d{3}[)\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}(?!\d)/g;
         text = text.replace(generalPhoneRegex, (match) => {
             const clean = match.replace(/[\s\(\)-]/g, '');
             // Convert 8... to +7... for the link
