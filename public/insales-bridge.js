@@ -1,130 +1,52 @@
-// ===== InSales Data Bridge =====
-// Этот скрипт отвечает за получение данных о товарах с сайта InSales
+// ===== InSales Data Bridge (Server-side Version) =====
+// Теперь поиск товаров происходит на сервере Render, что быстрее и надежнее
 
 class InSalesBridge {
     constructor() {
-        this.cacheKey = 'insales_catalog_cache';
-        this.cacheExpiry = 3600000; // 1 час
-        this.catalog = null;
-        this.isLoading = false;
+        this.apiBaseUrl = typeof CONFIG !== 'undefined' ? CONFIG.api.baseUrl : '';
     }
 
     /**
-     * Инициализация моста и загрузка каталога
+     * Инициализация (теперь просто проверка связи)
      */
     async init() {
-        const cached = localStorage.getItem(this.cacheKey);
-        if (cached) {
-            const { data, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < this.cacheExpiry) {
-                this.catalog = data;
-                console.log('InSales Bridge: Загружен каталог из кэша (%d товаров)', this.catalog.length);
-                return;
-            }
-        }
-        await this.syncCatalog();
+        console.log('InSales Bridge: Работает через серверный поиск');
     }
 
     /**
-     * Синхронизация каталога с JSON API сайта
+     * Поиск подходящих товаров через API сервера
      */
-    async syncCatalog() {
-        if (this.isLoading) return;
-        this.isLoading = true;
+    async findProducts(query, limit = 5) {
+        if (!query) return [];
 
-        console.log('InSales Bridge: Синхронизация каталога...');
+        try {
+            console.log(`InSales Bridge: Запрос поиска на сервер: "${query}"`);
+            const response = await fetch(`${this.apiBaseUrl}/api/search?q=${encodeURIComponent(query)}`);
 
-        const endpoints = [
-            '/collection/all.json?page_size=100', // Самый надежный для InSales
-            '/products.json',
-            '/search.json?q='
-        ];
+            if (!response.ok) throw new Error('Search API error');
 
-        for (const endpoint of endpoints) {
-            try {
-                const response = await fetch(endpoint);
-                if (response.ok) {
-                    const data = await response.json();
-                    const products = Array.isArray(data) ? data : (data.products || []);
-
-                    if (products.length > 0) {
-                        this.catalog = products.map(p => {
-                            const handle = p.handle || p.permalink || p.id;
-                            return {
-                                id: p.id,
-                                title: p.title,
-                                handle: handle,
-                                price: p.variants?.[0]?.price || p.price,
-                                url: `/product/${handle}`,
-                                image: p.images?.[0]?.original_url || p.first_image?.original_url,
-                                category: p.category_id,
-                                description: this.stripHtml(p.description || '').substring(0, 150)
-                            };
-                        });
-
-                        localStorage.setItem(this.cacheKey, JSON.stringify({
-                            data: this.catalog,
-                            timestamp: Date.now()
-                        }));
-
-                        console.log('InSales Bridge: Синхронизация завершена. Найдено %d товаров', this.catalog.length);
-                        this.isLoading = false;
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.warn(`InSales Bridge: Ошибка при запросе к ${endpoint}:`, e);
-            }
+            const results = await response.json();
+            return results.slice(0, limit);
+        } catch (error) {
+            console.error('InSales Bridge: Ошибка при поиске на сервере:', error);
+            return [];
         }
-
-        console.error('InSales Bridge: Не удалось загрузить каталог ни с одного эндпоинта.');
-        this.isLoading = false;
-    }
-
-    /**
-     * Поиск подходящих товаров по запросу пользователя
-     */
-    findProducts(query, limit = 3) {
-        if (!this.catalog || !query) return [];
-
-        const searchTerms = query.toLowerCase()
-            .replace(/[.,!?;:]/g, ' ')
-            .split(/\s+/)
-            .filter(t => t.length > 2);
-
-        if (searchTerms.length === 0) return [];
-
-        return this.catalog
-            .map(product => {
-                let score = 0;
-                const text = (product.title + ' ' + (product.description || '')).toLowerCase();
-
-                searchTerms.forEach(term => {
-                    if (text.includes(term)) score += 1;
-                });
-
-                return { ...product, score };
-            })
-            .filter(p => p.score > 0)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit);
     }
 
     /**
      * Форматирование найденных товаров для контекста ИИ
      */
     formatProductsForAI(products) {
-        if (products.length === 0) return "К сожалению, в нашем каталоге по вашему запросу ничего не найдено.";
+        if (!products || products.length === 0) {
+            return "К сожалению, в нашем расширенном каталоге по вашему конкретному запросу ничего не найдено. Предложите клиенту уточнить параметры или связаться с оператором.";
+        }
 
-        return "Найденные товары в нашем каталоге:\n" + products.map(p =>
-            `- ${p.title} (Цена: ${p.price} руб.). Ссылка: ${window.location.origin}${p.url}`
-        ).join('\n');
-    }
-
-    stripHtml(html) {
-        const tmp = document.createElement("DIV");
-        tmp.innerHTML = html;
-        return tmp.textContent || tmp.innerText || "";
+        return "Найденные позиции в каталоге:\n" + products.map(p => {
+            const price = p.price ? `${p.price} руб.` : 'по запросу';
+            const url = p.url ? (p.url.startsWith('http') ? p.url : `https://dveri-ekat.ru${p.url}`) : '#';
+            const category = p.category ? `[${p.category}] ` : '';
+            return `- ${category}${p.title} (${price}). Ссылка: ${url}`;
+        }).join('\n');
     }
 }
 
