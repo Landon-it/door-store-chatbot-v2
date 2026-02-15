@@ -32,17 +32,17 @@ const bitrixBot = new BitrixBot(
 );
 
 const DEFAULT_CONFIG = {
-    storeName: "Гардиан",
+    storeName: "Двери Екатеринбурга",
     operator: {
-        phone: "8 (800) 555-35-35",
-        email: "info@dveri-ekat.ru",
-        workHours: "Пн-Пт 9:00 - 18:00"
+        phone: "+7 (999) 340-62-15",
+        email: "office@dveri-ekat.ru",
+        workHours: "Пн-Пт: 10:00-20:00, Сб-Вс: 10:00-19:00"
     }
 };
 
-// Enable CORS for the store domain
+// Enable CORS for the store domain and self
 app.use(cors({
-    origin: ['https://dveri-ekat.ru', 'http://localhost:3000'],
+    origin: '*', // For development, allow all. In production, we can restrict back.
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -90,7 +90,11 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 7. Форматируй ответы с помощью HTML тегов: <strong>, <br> (для Bitrix24 используй обычные переносы строк если нужно)
 8. ВАЖНО: НЕ задавай вопросы в конце КАЖДОГО ответа! Давай полезную информацию и заканчивай ответ естественно.
 9. Делай ссылки кликабельными.
-10. КРИТИЧНО: Давай КОРОТКИЕ и ЛАКОНИЧНЫЕ ответы! Максимум 3-5 предложений.`;
+10. КРИТИЧНО: Давай КОРОТКИЕ и ЛАКОНИЧНЫЕ ответы! Максимум 3-5 предложений.
+11. ПРОАКТИВНОСТЬ В ССЫЛКАХ: 
+    - Всегда предлагай посмотреть товары на сайте.
+    - Ссылка на весь каталог: https://dveri-ekat.ru/collection/all
+    - Если клиент ищет что-то конкретное (бренд "Albero", материал "Экошпон", тип "Межкомнатные"), ОБЯЗАТЕЛЬНО давай ссылку на поиск по сайту: https://dveri-ekat.ru/search?q=[ключевое_слово_из_запроса]`;
 
     if (productsContext) {
         systemPrompt += `\n\nВ нашем каталоге найдены подходящие товары:\n${productsContext}`;

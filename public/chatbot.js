@@ -117,7 +117,7 @@ class DoorStoreChatbot {
         if (CONFIG.api.enabled) {
             // Search for relevant products in catalog
             const relevantProducts = typeof INSALES_BRIDGE !== 'undefined' ? await INSALES_BRIDGE.findProducts(message) : [];
-            const productsContext = relevantProducts.length > 0 ? INSALES_BRIDGE.formatProductsForAI(relevantProducts) : null;
+            const productsContext = typeof INSALES_BRIDGE !== 'undefined' ? INSALES_BRIDGE.formatProductsForAI(relevantProducts, message) : null;
 
             response = await this.callGroqAPI(message, productsContext);
         }
@@ -243,7 +243,7 @@ class DoorStoreChatbot {
             for (const [key, material] of Object.entries(doorInfo.materials)) {
                 response += `<strong>${material.name}</strong> - ${material.priceRange}\n`;
             }
-            response += `\nКакой материал вас интересует?`;
+            response += `\nКакой материал вас интересует? Посмотреть все входные двери можно здесь: https://dveri-ekat.ru/collection/seif-dveri`;
         }
 
         return this.maybeAddHumor(response);
@@ -278,7 +278,7 @@ class DoorStoreChatbot {
             for (const [key, material] of Object.entries(doorInfo.materials)) {
                 response += `<strong>${material.name}</strong> - ${material.priceRange}\n`;
             }
-            response += `\nКакой материал предпочитаете?`;
+            response += `\nКакой материал предпочитаете? Посмотрите наш каталог: https://dveri-ekat.ru/collection/mezhkomnatnye-dveri`;
         }
 
         return this.maybeAddHumor(response);
@@ -386,10 +386,10 @@ class DoorStoreChatbot {
 
     getDefaultResponse() {
         const responses = [
-            'Интересный вопрос! Но чтобы дать точный ответ, мне нужно передать вас нашему оператору. Он точно поможет! 😊',
-            'Хм, это немного выходит за рамки моей специализации. Давайте я соединю вас с оператором - он вам всё расскажет!',
-            'Отличный вопрос! Чтобы не давать неточную информацию, лучше уточню у оператора. Переведу вас к нему?',
-            'Могу ли я помочь вам с выбором конкретного типа дверей? Или хотите поговорить с оператором для детальной консультации?'
+            'Интересный вопрос! Но чтобы дать точный ответ, мне лучше передать вас нашему оператору. Также вы можете поискать самостоятельно в каталоге: https://dveri-ekat.ru/collection/all 😊',
+            'Хм, это немного выходит за рамки моей специализации. Давайте я соединю вас с оператором, а пока можете посмотреть наши новинки: https://dveri-ekat.ru',
+            'Отличный вопрос! Чтобы не давать неточную информацию, лучше уточню у оператора. Или попробуйте найти через поиск на сайте: https://dveri-ekat.ru/search',
+            'Могу ли я помочь вам с выбором конкретного типа дверей? Весь ассортимент доступен по ссылке: https://dveri-ekat.ru/collection/all'
         ];
 
         return this.getRandomElement(responses);
@@ -503,10 +503,15 @@ class DoorStoreChatbot {
     }
 
     formatMessage(text) {
+        // Convert URLs to <a> tags (excluding those already in tags or tel/mailto)
+        const urlRegex = /(?<!href="|">)(https?:\/\/[^\s<]+)/g;
+        text = text.replace(urlRegex, (url) => {
+            return `<a href="${url}" target="_blank" class="content-link">${url}</a>`;
+        });
+
         // Convert newlines to <br>
         text = text.replace(/\n/g, '<br>');
 
-        // Keep existing HTML tags like <strong>
         return text;
     }
 

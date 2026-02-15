@@ -56,49 +56,94 @@ class CatalogManager {
 
             console.log(`Catalog updated: ${this.products.length} products.`);
         } catch (error) {
-            console.error('Error updating catalog:', error);
+            console.error('Error updating catalog:', error.message);
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+            }
         }
     }
 
     parseCatalog(rawData) {
+        if (!rawData || rawData.length === 0) {
+            console.error('No data found in XLS');
+            this.products = [];
+            return;
+        }
+
+        // Log keys of the first non-empty item to debug
+        const firstItem = rawData.find(item => Object.keys(item).length > 0);
+        if (firstItem) {
+            console.log('Detected XLS columns:', Object.keys(firstItem));
+        }
+
         // Map XLS columns to our product structure
         this.products = rawData
-            .filter(item => item['ID товара'] || item['Название товара или услуги'])
             .map(item => {
+                // Try different possible column names
+                const title = item['Название товара или услуги'] || item['Название'] || item['Наименование'] || item['Name'];
+                const id = item['ID товара'] || item['ID'] || item['Артикул'];
+                const price = item['Цена продажи'] || item['Цена'] || item['Price'];
+                const url = item['URL'] || item['Ссылка'];
+
+                if (!title) return null;
+
                 return {
-                    id: item['ID товара'],
-                    title: item['Название товара или услуги'],
-                    price: item['Цена продажи'] || item['Цена'],
-                    url: item['URL'],
+                    id: id || `item_${Math.random().toString(36).substr(2, 9)}`,
+                    title: title,
+                    price: price || 'по запросу',
+                    url: url || '',
                     description: item['Описание'] || item['Дополнительное описание'] || '',
-                    category: item['Категория'],
+                    category: item['Категория'] || '',
                     // Store all properties for deep search
                     properties: Object.keys(item)
-                        .filter(key => key.startsWith('Параметр:'))
+                        .filter(key => key.startsWith('Параметр:') || key.startsWith('Характеристика:'))
                         .reduce((acc, key) => {
-                            acc[key.replace('Параметр: ', '')] = item[key];
+                            acc[key.replace(/^Параметр: |^Характеристика: /, '')] = item[key];
                             return acc;
                         }, {})
                 };
-            });
+            })
+            .filter(item => item !== null);
+
+        console.log(`Parsed ${this.products.length} valid products.`);
     }
 
     search(query, limit = 5) {
-        if (!query) return [];
+        if (!query || typeof query !== 'string') return [];
         const lowerQuery = query.toLowerCase();
 
-        // Advanced search: check title, category, and properties
-        return this.products
-            .map(p => {
-                let score = 0;
-                if (p.title && p.title.toLowerCase().includes(lowerQuery)) score += 10;
-                if (p.category && p.category.toLowerCase().includes(lowerQuery)) score += 5;
-                if (JSON.stringify(p.properties).toLowerCase().includes(lowerQuery)) score += 3;
-                return { ...p, score };
-            })
-            .filter(p => p.score > 0)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit);
+        // Ensure products is an array
+        if (!Array.isArray(this.products)) {
+            console.error('CatalogManager: products is not an array!');
+            return [];
+        }
+
+        try {
+            // Advanced search: check title, category, and properties
+            return this.products
+                .map(p => {
+                    if (!p) return { score: 0 };
+                    let score = 0;
+                    if (p.title && p.title.toLowerCase().includes(lowerQuery)) score += 10;
+                    if (p.category && p.category.toLowerCase().includes(lowerQuery)) score += 5;
+
+                    // Safe properties search
+                    if (p.properties) {
+                        try {
+                            if (JSON.stringify(p.properties).toLowerCase().includes(lowerQuery)) score += 3;
+                        } catch (e) {
+                            // Ignore stringify errors
+                        }
+                    }
+                    return { ...p, score };
+                })
+                .filter(p => p.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, limit);
+        } catch (error) {
+            console.error('CatalogManager Search Error:', error);
+            return [];
+        }
     }
 
     getProductById(id) {
