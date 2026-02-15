@@ -194,7 +194,7 @@ class DoorStoreChatbot {
             return this.getRandomElement(KNOWLEDGE_BASE.greetings);
         }
 
-        if (this.matchesKeywords(messageLower, ['входная', 'входные', 'металлическая', 'железная', 'уличная'])) {
+        if (this.matchesKeywords(messageLower, ['входная', 'входные', 'металлическая', 'железная', 'уличная', 'терморазрыв'])) {
             return this.getEntranceDoorInfo(messageLower);
         }
 
@@ -229,6 +229,13 @@ class DoorStoreChatbot {
     getEntranceDoorInfo(message) {
         const doorInfo = KNOWLEDGE_BASE.doorTypes.entrance;
         let response = `🔒 <strong>Входные двери</strong>\n\n`;
+
+        // Check for thermal break
+        if (message.includes('терморазрыв')) {
+            response += `<strong>С терморазрывом - отличный выбор для частного дома!</strong> Они не промерзают и сохраняют тепло.\n`;
+            response += `Посмотрите все модели с терморазрывом здесь: https://dveri-ekat.ru/search?q=%D1%82%D0%B5%D1%80%D0%BC%D0%BE%D1%80%D0%B0%D0%B7%D1%80%D1%8B%D0%B2&lang=ru\n\n`;
+            return this.maybeAddHumor(response);
+        }
 
         // Check for specific material
         if (message.includes('металл') || message.includes('железн')) {

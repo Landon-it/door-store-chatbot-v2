@@ -107,7 +107,8 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
     - "Оплата" — раздел: https://dveri-ekat.ru/page/payment
     - "Установка" — ссылайся на раздел "Наши работы": https://dveri-ekat.ru/blogs/completework
     - "Фурнитура" — это разделы "Замки" (https://dveri-ekat.ru/collection/catalog-zamkov) и "Ручки" (https://dveri-ekat.ru/collection/catalog-ruchek). Обязательно предлагай эти ссылки при запросе фурнитуры.
-    - "Сейф-двери" или "сейфы" — это всегда "Входные двери".`;
+    - "Сейф-двери" или "сейфы" — это всегда "Входные двери".
+    - "Терморазрыв" — это ВСЕГДА входные двери. Если клиент спрашивает про терморазрыв, давай ссылку: https://dveri-ekat.ru/search?q=%D1%82%D0%B5%D1%80%D0%BC%D0%BE%D1%80%D0%B0%D0%B7%D1%80%D1%8B%D0%B2&lang=ru`;
 
     if (productsContext) {
         systemPrompt += `\n\nВ нашем каталоге найдены реальные товары (используй ТОЛЬКО их для конкретных рекомендаций по моделям и брендам):\n${productsContext}`;
