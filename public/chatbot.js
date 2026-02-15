@@ -306,8 +306,8 @@ class DoorStoreChatbot {
             response += `💰 Цены: ${hardware.hinges.priceRange}`;
         } else {
             response += `У нас есть вся необходимая фурнитура:\n\n`;
-            response += `• <strong>Замки</strong> (https://dveri-ekat.ru/collection/zamki) - ${hardware.locks.priceRange}\n`;
-            response += `• <strong>Ручки</strong> (https://dveri-ekat.ru/collection/ruchki) - ${hardware.handles.priceRange}\n`;
+            response += `• <strong>Замки</strong> (https://dveri-ekat.ru/collection/catalog-zamkov) - ${hardware.locks.priceRange}\n`;
+            response += `• <strong>Ручки</strong> (https://dveri-ekat.ru/collection/catalog-ruchek) - ${hardware.handles.priceRange}\n`;
             response += `• <strong>Петли</strong> - ${hardware.hinges.priceRange}\n`;
             response += `• <strong>Прочее:</strong> ${hardware.other.items.join(', ')}`;
         }
