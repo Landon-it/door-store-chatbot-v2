@@ -164,6 +164,20 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Bitrix24 Webhook Handler
+// GET request for initial configuration/checks
+app.get('/api/bitrix/webhook', (req, res) => {
+    res.send(`
+        <html>
+            <head><title>Bitrix24 Bot Server</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                <h1>✅ Bot Server is Running!</h1>
+                <p>Status: <strong>Active</strong></p>
+                <p>This endpoint receives webhooks from Bitrix24.</p>
+            </body>
+        </html>
+    `);
+});
+
 app.post('/api/bitrix/webhook', async (req, res) => {
     const event = req.body.event;
     const data = req.body.data;
