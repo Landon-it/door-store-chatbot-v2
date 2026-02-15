@@ -191,9 +191,11 @@ app.get('/api/bitrix/webhook', async (req, res) => {
 
             // NOTE: For 'Box' (self-hosted) bitrix96.ru, the token URL is on the domain itself.
             const tokenUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/token/?grant_type=authorization_code&client_id=${process.env.BITRIX24_CLIENT_ID}&client_secret=${process.env.BITRIX24_CLIENT_SECRET}&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+            console.log('Fetching token from:', tokenUrl.replace(process.env.BITRIX24_CLIENT_SECRET, '***'));
 
             const tokenResponse = await fetch(tokenUrl);
             const tokenData = await tokenResponse.json();
+            console.log('Token Data received:', tokenData);
 
             if (tokenData.error) {
                 console.error('Token Exchange Error:', tokenData);
@@ -460,41 +462,66 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 }
 
                 const hasScope = appInfo.result && appInfo.result.SCOPE;
-                const scopeWarning = !hasScope ?
-                    `<div style="background: #ffecf0; padding: 15px; border-left: 5px solid #ff0000; margin-bottom: 20px; color: #d00;">
-                        <strong>КРИТИЧЕСКАЯ ОШИБКА:</strong> В вашем Bitrix24 приложению не выданы права доступа (Scope)!<br>
-                        Без прав Битрикс не будет отправлять вебхуки. 
-                        <br><br>
-                        <strong>Решение:</strong> Зайдите в "Локальные приложения" -> Настройки -> и добавьте галочки: 
-                        <code>im</code> (Чат-боты) и <code>imopenlines</code> (Открытые линии).
-                    </div>` : '';
+                const isInstalled = appInfo.result && appInfo.result.INSTALLED;
+
+                let criticalWarning = '';
+                if (!hasScope || !isInstalled) {
+                    criticalWarning = `
+                        <div style="background: #fff0f0; border: 2px solid #e03131; padding: 20px; border-radius: 12px; margin-bottom: 25px; color: #c92a2a;">
+                            <h3 style="margin-top: 0;">❌ Проблема синхронизации прав (Bitrix Box Issue)</h3>
+                            <p>Битрикс сообщает, что у приложения <b>нет прав (SCOPE: ${appInfo.result && appInfo.result.SCOPE ? appInfo.result.SCOPE : 'пусто'})</b>, хотя в настройках галочки стоят.</p>
+                            <p style="font-weight: bold;">ВАШЕ ДЕЙСТВИЕ В БИТРИКСЕ:</p>
+                            <ol>
+                                <li>Вернитесь в настройки Локального приложения в Битриксе.</li>
+                                <li>Нажмите на голубую кнопку <b>ПЕРЕУСТАНОВИТЬ</b> (рядом с кнопкой "Перейти к приложению").</li>
+                                <li>Это ОБЯЗАТЕЛЬНО для обновления токенов в коробочной версии.</li>
+                            </ol>
+                        </div>
+                    `;
+                }
 
                 return res.send(`
                     <!DOCTYPE html>
                     <html>
-                    <body style="font-family: sans-serif; padding: 20px; color: #333; line-height: 1.5;">
-                        <h2>🔍 Результаты диагностики</h2>
-                        <div style="margin-bottom: 20px;">
-                            <strong>Текущий домен:</strong> ${DOMAIN}<br>
-                            <strong>Адрес вебхука (HANDLER):</strong> ${redirectUri}
+                    <body style="font-family: 'Segoe UI', sans-serif; padding: 20px; color: #333; line-height: 1.5; background: #f0f2f5;">
+                        <div style="max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                            <h2 style="color: #102a43; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-top: 0;">🔍 Диагностика подключения</h2>
+                            
+                            <div style="margin-bottom: 25px; font-size: 14px; color: #627d98; background: #f8fafc; padding: 10px; border-radius: 8px;">
+                                <strong>Домен:</strong> ${DOMAIN} | 
+                                <strong>Обработчик (HANDLER):</strong> <code style="color: #d63384;">${redirectUri}</code>
+                            </div>
+
+                            ${criticalWarning}
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <h4 style="margin-bottom: 10px;">Статус в Б24:</h4>
+                                    <div style="padding: 15px; border-radius: 8px; background: ${isInstalled ? '#ebfbee' : '#fff9db'}; color: ${isInstalled ? '#2b8a3e' : '#f08c00'}; font-weight: bold; border: 1px solid currentColor;">
+                                        ${isInstalled ? '✅ Установлено' : '⏳ Требует переустановки'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 style="margin-bottom: 10px;">Права доступа (Scope):</h4>
+                                    <div style="padding: 15px; border-radius: 8px; background: ${hasScope ? '#ebfbee' : '#fff5f5'}; color: ${hasScope ? '#2b8a3e' : '#e03131'}; font-weight: bold; border: 1px solid currentColor; word-break: break-all;">
+                                        ${hasScope ? appInfo.result.SCOPE : '❌ НЕТ ПРАВ'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h3 style="margin-top: 30px; font-size: 16px;">1. Ответ app.info:</h3>
+                            <pre style="background: #1a1a1a; color: #00ff00; padding: 15px; border-radius: 8px; overflow: auto; font-size: 12px; max-height: 200px;">${JSON.stringify(appInfo, null, 2)}</pre>
+                            
+                            <h3 style="margin-top: 20px; font-size: 16px;">2. Детали нашего бота (imbot.bot.get):</h3>
+                            <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow: auto; font-size: 12px; border: 1px solid #dee2e6;">${myBotDetails}</pre>
+
+                            <h3 style="margin-top: 20px; font-size: 16px;">3. Все боты на портале:</h3>
+                            <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; max-height: 200px; overflow: auto; font-size: 12px; border: 1px solid #dee2e6;">${JSON.stringify(list, null, 2)}</pre>
+                            
+                            <div style="margin-top: 30px; text-align: center;">
+                                <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 12px 30px; border-radius: 8px; font-weight: bold; text-decoration: none; display: inline-block;">⬅️ Вернуться в меню управления</a>
+                            </div>
                         </div>
-
-                        ${scopeWarning}
-
-                        <div style="background: #fff9db; padding: 15px; border-left: 5px solid #fcc419; margin-bottom: 20px;">
-                            <strong>Статус установки:</strong> ${appInfo.result && appInfo.result.INSTALLED ? '✅ Установлено' : '⏳ ПРОВЕРЬТЕ: Б24 помечает как "Не установлено"'}
-                        </div>
-
-                        <h3>1. Данные приложения (app.info):</h3>
-                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; overflow: auto; font-size: 13px;">${JSON.stringify(appInfo, null, 2)}</pre>
-                        
-                        <h3>2. Настройки нашего бота (детально):</h3>
-                        <pre style="background: #e3f2fd; padding: 15px; border-radius: 8px; overflow: auto; font-size: 13px;">${myBotDetails}</pre>
-
-                        <h3>3. Список всех ботов:</h3>
-                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; max-height: 300px; overflow: auto; font-size: 13px;">${JSON.stringify(list, null, 2)}</pre>
-                        
-                        <a href="javascript:history.back()" style="display: inline-block; margin-top: 20px; color: #0091ea; font-weight: bold; text-decoration: none;">⬅️ Вернуться назад</a>
                     </body>
                     </html>
                 `);
