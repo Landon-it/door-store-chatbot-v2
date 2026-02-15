@@ -218,6 +218,10 @@ class DoorStoreChatbot {
             return `📧 Наша электронная почта: <a href="mailto:office@dveri-ekat.ru">office@dveri-ekat.ru</a>\nПишите нам по любым вопросам!`;
         }
 
+        if (this.matchesKeywords(messageLower, ['где', 'находитесь', 'адрес', 'салон', 'найти'])) {
+            return `📍 <strong>Мы находимся по адресу:</strong>\nг. Екатеринбург, Базовый пер., 47, этаж 2\n\nКарта и подробности: <a href="https://dveri-ekat.ru/page/contacts" target="_blank">https://dveri-ekat.ru/page/contacts</a>`;
+        }
+
         if (this.matchesKeywords(messageLower, ['цена', 'стоимость', 'бюджет', 'сколько стоит', 'стоят'])) {
             return this.getBudgetInfo(messageLower);
         }
