@@ -196,16 +196,50 @@ app.get('/api/bitrix/webhook', async (req, res) => {
 
             console.log('Token acquired. Registering bot...');
 
-            // Register Bot using the new access token
-            const regResult = await bitrixBot.registerBot(redirectUri, {
-                access_token: tokenData.access_token,
-                refresh_token: tokenData.refresh_token, // might be useful later
-                domain: process.env.BITRIX24_DOMAIN
-            });
+            // Register OR Update Bot
+            let botId = null;
+            const botParams = {
+                'CODE': 'door_store_bot',
+                'TYPE': 'B',
+                'OPENLINE': 'Y',
+                'EVENT_MESSAGE_ADD': redirectUri, // We reuse redirectUri as webhookUrl here
+                'EVENT_WELCOME_MESSAGE': redirectUri,
+                'EVENT_BOT_DELETE': redirectUri,
+                'PROPERTIES': {
+                    'NAME': 'Виртуальный консультант',
+                    'COLOR': 'GREEN',
+                    'EMAIL': 'bot@dveri-ekat.ru',
+                    'PERSONAL_BIRTHDAY': '2024-02-15',
+                    'PERSONAL_WWW': 'https://dveri-ekat.ru',
+                    'PERSONAL_GENDER': 'M',
+                }
+            };
+
+            const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: tokenData.access_token, domain: process.env.BITRIX24_DOMAIN });
 
             if (regResult.error) {
-                console.error('Registration Error:', regResult);
-                return res.send(`<h1>Registration Failed</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+                console.warn('Registration failed (probably exists). Error:', regResult.error);
+                // Try to find and update
+                const listResult = await bitrixBot.getBotList({ access_token: tokenData.access_token, domain: process.env.BITRIX24_DOMAIN });
+                if (listResult.result) {
+                    const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
+                    if (existingBot) {
+                        console.log(`Found existing bot ID=${existingBot.ID}. Updating...`);
+                        const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: tokenData.access_token, domain: process.env.BITRIX24_DOMAIN });
+                        if (updResult.error) {
+                            console.error('Update Error:', updResult);
+                            return res.send(`<h1>Update Failed</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
+                        }
+                        botId = existingBot.ID;
+                        console.log('Bot updated successfully.');
+                    } else {
+                        return res.send(`<h1>Registration Failed</h1><p>Bot CODE exists but not found in list?</p><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+                    }
+                } else {
+                    return res.send(`<h1>List Failed</h1><pre>${JSON.stringify(listResult, null, 2)}</pre>`);
+                }
+            } else {
+                botId = regResult.result;
             }
 
             // Success Page
@@ -213,9 +247,9 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                 <!DOCTYPE html>
                 <html>
                 <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
-                    <h1>✅ Бот успешно зарегистрирован! (Server-Side)</h1>
-                    <p>Проверьте список "Открытые линии" -> "Чат-боты".</p>
-                    <p>ID Бота: ${regResult.result}</p>
+                    <h1>✅ Бот успешно настроен! (Server-Side)</h1>
+                    <p>ID Бота: ${botId}</p>
+                    <p>Теперь он точно должен появиться в "Открытых линиях".</p>
                 </body>
                 </html>
             `);
@@ -307,20 +341,60 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
 
         try {
-            const regResult = await bitrixBot.registerBot(redirectUri, {
-                access_token: AUTH_ID,
-                domain: DOMAIN // e.g. bitrix96.ru
-            });
+            // Register OR Update Bot (POST logic)
+            let botId = null;
+            const botParams = {
+                'CODE': 'door_store_bot',
+                'TYPE': 'B',
+                'OPENLINE': 'Y',
+                'EVENT_MESSAGE_ADD': redirectUri,
+                'EVENT_WELCOME_MESSAGE': redirectUri,
+                'EVENT_BOT_DELETE': redirectUri,
+                'PROPERTIES': {
+                    'NAME': 'Виртуальный консультант',
+                    'COLOR': 'GREEN',
+                    'EMAIL': 'bot@dveri-ekat.ru',
+                    'PERSONAL_BIRTHDAY': '2024-02-15',
+                    'PERSONAL_WWW': 'https://dveri-ekat.ru',
+                    'PERSONAL_GENDER': 'M',
+                }
+            };
+
+            // Note: We use callMethod directly to control the flow, or we could have made a helper. 
+            // Since we are fixing this inline for now:
+            const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: AUTH_ID, domain: DOMAIN });
 
             if (regResult.error) {
-                return res.send(`<h1>Registration Failed (POST)</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+                console.warn('POST Registration failed (probably exists). Error:', regResult.error);
+                // Try to find and update
+                const listResult = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
+
+                if (listResult.result) {
+                    const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
+                    if (existingBot) {
+                        console.log(`[POST] Found existing bot ID=${existingBot.ID}. Updating...`);
+                        const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: AUTH_ID, domain: DOMAIN });
+                        if (updResult.error) {
+                            console.error('[POST] Update Error:', updResult);
+                            return res.send(`<h1>Update Failed</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
+                        }
+                        botId = existingBot.ID;
+                        console.log('[POST] Bot updated successfully.');
+                    } else {
+                        return res.send(`<h1>Registration Failed</h1><p>Bot CODE exists but not found in list?</p><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+                    }
+                } else {
+                    return res.send(`<h1>List Failed</h1><pre>${JSON.stringify(listResult, null, 2)}</pre>`);
+                }
+            } else {
+                botId = regResult.result;
             }
 
             return res.send(`
                 <!DOCTYPE html>
                 <html>
                 <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
-                    <h1>✅ Бот успешно зарегистрирован!</h1>
+                    <h1>✅ Бот успешно настроен!</h1>
                     <p>Ищите "Виртуальный консультант" в настройках Открытых линий.</p>
                 </body>
                 </html>
