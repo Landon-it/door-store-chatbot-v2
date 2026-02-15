@@ -46,7 +46,12 @@ class InSalesBridge {
             const price = p.price ? `${p.price} руб.` : 'по запросу';
             const url = p.url ? (p.url.startsWith('http') ? p.url : `https://dveri-ekat.ru${p.url}`) : '#';
             const category = p.category ? `[${p.category}] ` : '';
-            return `- ${category}${p.title} (${price}). Ссылка: ${url}`;
+
+            // Extract brand from properties
+            const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
+            const brandStr = brand ? `Бренд: ${brand}. ` : '';
+
+            return `- ${category}${p.title} (${price}). ${brandStr}Ссылка: ${url}`;
         }).join('\n');
     }
 }
