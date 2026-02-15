@@ -298,6 +298,8 @@ app.get('/api/bitrix/webhook', async (req, res) => {
 });
 
 app.post('/api/bitrix/webhook', async (req, res) => {
+    console.log(`[HTTP ${req.method}] ${req.url} | Body keys: ${Object.keys(req.body)} | Query: ${JSON.stringify(req.query)}`);
+
     // 1. Bitrix24 sends POST application/x-www-form-urlencoded
     // We need 'express.urlencoded' middleware to parse it (AUTH_ID, etc)
     let { event, AUTH_ID, DOMAIN } = req.body;
