@@ -348,19 +348,57 @@ app.post('/api/bitrix/webhook', async (req, res) => {
     }
 
     // Case B: Application Load (POST from Bitrix Interface)
-    // Bitrix sends AUTH_ID (access_token) in body when opening iframe
-    if (AUTH_ID) {
-        console.log('App loaded via POST with AUTH_ID. Use this to register bot.');
+    if (AUTH_ID && !req.body.action) {
+        console.log('App loaded via POST. Showing Setup UI.');
 
-        // We can register immediately using this token!
+        return res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; text-align: center; padding: 40px; background: #f0f4f8; color: #334e68; }
+                    .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); display: inline-block; max-width: 500px; width: 100%; border: 1px solid #e2e8f0; }
+                    h1 { color: #102a43; margin-top: 0; font-size: 24px; }
+                    p { line-height: 1.6; color: #486581; margin-bottom: 25px; }
+                    .btn { background: #0091ea; color: white; border: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: all 0.2s; font-weight: 600; box-shadow: 0 4px 6px rgba(0,145,234,0.2); }
+                    .btn:hover { background: #007bc7; transform: translateY(-1px); box-shadow: 0 6px 12px rgba(0,145,234,0.3); }
+                    .info { margin-top: 35px; text-align: left; padding: 20px; background: #fff9db; border-radius: 8px; border-left: 5px solid #fcc419; }
+                    .info h3 { margin-top: 0; font-size: 16px; color: #856404; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h1>🤖 Настройка Чат-бота</h1>
+                    <p>Для активации "Виртуального консультанта" и его регистрации в вашем Битрикс24, пожалуйста, нажмите кнопку ниже.</p>
+                    
+                    <form method="POST">
+                        <!-- Передаем все полученные от Битрикс параметры обратно -->
+                        ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
+                        <input type="hidden" name="action" value="install">
+                        <button type="submit" class="btn">🚀 Установить / Обновить бота</button>
+                    </form>
+
+                    <div class="info">
+                        <h3>ℹ️ Инструкция:</h3>
+                        <p style="font-size: 14px; margin-bottom: 0;">После нажатия вы сможете выбрать бота в настройках <b>Открытых линий</b> (раздел "Чат-боты").</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+
+    // Case C: Explicit Install Action
+    if (AUTH_ID && req.body.action === 'install') {
+        console.log('Action: install. Registering bot...');
+
         const currentDomain = req.get('host');
         const protocol = req.protocol;
         const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
         const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
 
         try {
-            // Register OR Update Bot (POST logic)
-            let botId = null;
             const botParams = {
                 'CODE': 'door_store_bot',
                 'TYPE': 'B',
@@ -378,31 +416,20 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 }
             };
 
-            // Note: We use callMethod directly to control the flow, or we could have made a helper. 
-            // Since we are fixing this inline for now:
+            let botId = null;
             const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: AUTH_ID, domain: DOMAIN });
 
             if (regResult.error) {
-                console.warn('POST Registration failed (probably exists). Error:', regResult.error);
-                // Try to find and update
                 const listResult = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
-
                 if (listResult.result) {
                     const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
                     if (existingBot) {
-                        console.log(`[POST] Found existing bot ID=${existingBot.ID}. Updating...`);
                         const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: AUTH_ID, domain: DOMAIN });
-                        if (updResult.error) {
-                            console.error('[POST] Update Error:', updResult);
-                            return res.send(`<h1>Update Failed</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
-                        }
+                        if (updResult.error) return res.send(`<h1>Update Error</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
                         botId = existingBot.ID;
-                        console.log('[POST] Bot updated successfully.');
                     } else {
-                        return res.send(`<h1>Registration Failed</h1><p>Bot CODE exists but not found in list?</p><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+                        return res.send(`<h1>Error</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
                     }
-                } else {
-                    return res.send(`<h1>List Failed</h1><pre>${JSON.stringify(listResult, null, 2)}</pre>`);
                 }
             } else {
                 botId = regResult.result;
@@ -414,30 +441,26 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 <head>
                     <script src="//api.bitrix24.com/api/v1/"></script>
                     <script>
-                        function goToOpenLines() {
-                            BX24.openPath('/contact_center/openlines');
-                        }
+                        function goToOpenLines() { BX24.openPath('/contact_center/openlines'); }
                     </script>
+                    <style>
+                        body { font-family: sans-serif; text-align: center; padding: 50px; background: #e8f5e9; color: #2e7d32; }
+                        .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; }
+                        .btn { background: #4caf50; color: white; border: none; padding: 12px 30px; border-radius: 6px; cursor: pointer; margin-top: 25px; font-weight: bold; }
+                    </style>
                 </head>
-                <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
-                    <h1>✅ Бот успешно настроен!</h1>
-                    <p>Ищите "Виртуальный консультант" в настройках Открытых линий.</p>
-                    <button onclick="goToOpenLines()" style="padding: 10px 20px; font-size: 16px; margin-top: 20px; cursor: pointer;">
-                        ⚙️ Перейти к настройкам Открытых линий
-                    </button>
-                    <p style="margin-top: 30px; font-size: 14px; color: #555;">
-                        <strong>Если кнопка не работает:</strong><br>
-                        1. В левом меню выберите "Контакт-центр".<br>
-                        2. Нажмите "Открытые линии".<br>
-                        3. Зайдите в настройки линии -> вкладка "Чат-боты".<br>
-                        4. Выберите "Виртуальный консультант" и сохраните.
-                    </p>
+                <body>
+                    <div class="card">
+                        <h1>✅ Успешно!</h1>
+                        <p>Бот <b>Виртуальный консультант</b> зарегистрирован (ID: ${botId}).</p>
+                        <p>Теперь вы можете выбрать его в настройках любой Открытой Линии.</p>
+                        <button class="btn" onclick="goToOpenLines()">⚙️ Перейти к настройкам</button>
+                    </div>
                 </body>
                 </html>
             `);
         } catch (error) {
-            console.error('Registration POST Error:', error);
-            return res.send(`<h1>Error</h1><pre>${error.message}</pre>`);
+            return res.send(`<h1>System Error</h1><pre>${error.message}</pre>`);
         }
     }
 
