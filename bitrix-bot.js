@@ -38,6 +38,7 @@ class BitrixBot {
         return await this.callMethod('imbot.register', {
             'CODE': 'door_store_bot',
             'TYPE': 'B',
+            'OPENLINE': 'Y',
             'EVENT_MESSAGE_ADD': webhookUrl,
             'EVENT_WELCOME_MESSAGE': webhookUrl,
             'EVENT_BOT_DELETE': webhookUrl,
