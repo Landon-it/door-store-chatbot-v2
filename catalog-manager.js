@@ -110,7 +110,20 @@ class CatalogManager {
 
     search(query, limit = 5) {
         if (!query || typeof query !== 'string') return [];
-        const lowerQuery = query.toLowerCase();
+        let lowerQuery = query.toLowerCase();
+
+        // Handle brand/factory context
+        const brandKeywords = ['фабрика', 'производитель', 'изготовитель', 'бренд'];
+        let isBrandSearch = false;
+        if (brandKeywords.some(k => lowerQuery.includes(k))) {
+            isBrandSearch = true;
+            // Clean up the query to focus on the brand name
+            brandKeywords.forEach(k => {
+                lowerQuery = lowerQuery.replace(k, '').trim();
+            });
+        }
+
+        if (!lowerQuery && isBrandSearch) return []; // If only "фабрика" was typed
 
         // Ensure products is an array
         if (!Array.isArray(this.products)) {
@@ -124,16 +137,18 @@ class CatalogManager {
                 .map(p => {
                     if (!p) return { score: 0 };
                     let score = 0;
+
                     if (p.title && p.title.toLowerCase().includes(lowerQuery)) score += 10;
                     if (p.category && p.category.toLowerCase().includes(lowerQuery)) score += 5;
 
-                    // Safe properties search
+                    // Specific boost for brand search in properties
                     if (p.properties) {
                         try {
-                            if (JSON.stringify(p.properties).toLowerCase().includes(lowerQuery)) score += 3;
-                        } catch (e) {
-                            // Ignore stringify errors
-                        }
+                            const propsStr = JSON.stringify(p.properties).toLowerCase();
+                            if (propsStr.includes(lowerQuery)) {
+                                score += isBrandSearch ? 15 : 3;
+                            }
+                        } catch (e) { }
                     }
                     return { ...p, score };
                 })

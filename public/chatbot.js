@@ -138,9 +138,13 @@ class DoorStoreChatbot {
     }
 
     sendWelcomeMessage() {
-        const greeting = this.getRandomElement(KNOWLEDGE_BASE.greetings);
+        const greeting = `Здравствуйте! 👋 Я виртуальный консультант магазина "${CONFIG.storeName}".\n\nДавайте подберем идеальные двери для вашего дома. Какие двери вас интересуют в первую очередь?`;
         this.addMessage(greeting, 'bot');
-        this.addQuickActions();
+        this.addInitialQuickActions();
+    }
+
+    addInitialQuickActions() {
+        this.addQuickActions(['Входные двери', 'Межкомнатные двери', 'Фурнитура']);
     }
 
     async callGroqAPI(userMessage, productsContext = null) {
@@ -467,11 +471,13 @@ class DoorStoreChatbot {
         this.messageHistory.push({ text, type, timestamp: new Date() });
     }
 
-    addQuickActions() {
+    addQuickActions(actions = null) {
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'quick-actions';
 
-        KNOWLEDGE_BASE.quickActions.forEach(action => {
+        const actionList = actions || KNOWLEDGE_BASE.quickActions;
+
+        actionList.forEach(action => {
             const button = document.createElement('button');
             button.className = 'quick-action-btn';
             button.textContent = action;
