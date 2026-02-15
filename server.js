@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import BitrixBot from './bitrix-bot.js';
 import { catalogManager } from './catalog-manager.js';
+import cron from 'node-cron';
 
 dotenv.config();
 
@@ -17,6 +18,12 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize catalog
 catalogManager.init();
+
+// Schedule catalog update once a week (Sundays at 00:00)
+cron.schedule('0 0 * * 0', () => {
+    console.log('Running weekly catalog update...');
+    catalogManager.updateCatalog();
+});
 
 const bitrixBot = new BitrixBot(
     process.env.BITRIX24_DOMAIN,
