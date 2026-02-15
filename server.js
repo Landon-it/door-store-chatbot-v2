@@ -166,7 +166,6 @@ app.post('/api/chat', async (req, res) => {
 // Bitrix24 Webhook Handler
 // GET request for initial configuration/checks AND OAuth callback
 app.get('/api/bitrix/webhook', async (req, res) => {
-    // If we have 'code', it's the OAuth flow (which failed for the user, but we'll keep it just in case)
     const { code } = req.query;
 
     res.send(`
@@ -175,7 +174,7 @@ app.get('/api/bitrix/webhook', async (req, res) => {
         <head>
             <meta charset="UTF-8">
             <title>Bitrix24 Bot Installation</title>
-            <script src="//api.bitrix24.com/api/v1/"></script>
+            <script src="https://api.bitrix24.com/api/v1/"></script>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
             <style>
                 body { padding: 40px; text-align: center; }
@@ -184,9 +183,10 @@ app.get('/api/bitrix/webhook', async (req, res) => {
         </head>
         <body>
             <div class="status-card border">
+                <span class="badge bg-secondary mb-3">v2.1 (HTTPS)</span>
                 <h2 class="mb-4">🤖 Настройка Чат-бота</h2>
                 <div id="status" class="alert alert-info">
-                    Инициализация...
+                    ⏳ Загрузка библиотек...
                 </div>
                 <div id="details" class="text-muted small text-start"></div>
                 
@@ -221,9 +221,9 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                 function registerBot() {
                     log('⏳ Регистрируем бота...', 'warning');
                     
-                    if (!window.BX24) {
-                         log('⚠️ Ошибка: Библиотека BX24 не найдена. Попробуйте обновить страницу.', 'danger');
-                         return;
+                    if (typeof BX24 === 'undefined') {
+                        log('❌ Ошибка: Библиотека Bitrix24 не загрузилась. Проверьте блокировщики рекламы или настройки сети.', 'danger');
+                        return;
                     }
 
                     BX24.init(function(){
@@ -238,7 +238,6 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                             }
                             
                             const bots = result.data();
-                            // Check if bot exists by code
                             const existingBot = Object.values(bots).find(b => b.CODE === 'door_store_bot');
                             
                             if (existingBot) {
@@ -271,17 +270,18 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                     });
                 }
 
-                // Check if running inside Bitrix24 iframe
-                if (window.name) { // Bitrix usually sets window.name
-                     setTimeout(registerBot, 500); // Give a small delay for BX24 to load exactly
-                } else {
-                     // Try anyway or warn
-                     if (document.referrer && document.referrer.includes('bitrix')) {
-                        setTimeout(registerBot, 500);
-                     } else {
-                        log('⚠️ Откройте это приложение ВНУТРИ Bitrix24 (через меню "Разработчикам" -> "Открыть приложение").', 'warning');
-                     }
-                }
+                // Check environment
+                window.onload = function() {
+                    if (typeof BX24 === 'undefined') {
+                        log('❌ Не удалось загрузить API Bitrix24', 'danger');
+                    } else {
+                        // Auto-start if inside Bitrix24
+                         // Bitrix app frame usually has naming convention or specific context
+                         // We can try to init immediately
+                         log('✅ Библиотеки загружены. Инициализация...', 'info');
+                         registerBot();
+                    }
+                };
             </script>
         </body>
         </html>
