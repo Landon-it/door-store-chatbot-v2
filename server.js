@@ -261,6 +261,13 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                     <button onclick="goToOpenLines()" style="padding: 10px 20px; font-size: 16px; margin-top: 20px; cursor: pointer;">
                         ⚙️ Перейти к настройкам Открытых линий
                     </button>
+                    <p style="margin-top: 30px; font-size: 14px; color: #555;">
+                        <strong>Если кнопка не работает:</strong><br>
+                        1. В левом меню выберите "Контакт-центр".<br>
+                        2. Нажмите "Открытые линии".<br>
+                        3. Зайдите в настройки линии -> вкладка "Чат-боты".<br>
+                        4. Выберите "Виртуальный консультант" и сохраните.
+                    </p>
                 </body>
                 </html>
             `);
@@ -418,6 +425,13 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     <button onclick="goToOpenLines()" style="padding: 10px 20px; font-size: 16px; margin-top: 20px; cursor: pointer;">
                         ⚙️ Перейти к настройкам Открытых линий
                     </button>
+                    <p style="margin-top: 30px; font-size: 14px; color: #555;">
+                        <strong>Если кнопка не работает:</strong><br>
+                        1. В левом меню выберите "Контакт-центр".<br>
+                        2. Нажмите "Открытые линии".<br>
+                        3. Зайдите в настройки линии -> вкладка "Чат-боты".<br>
+                        4. Выберите "Виртуальный консультант" и сохраните.
+                    </p>
                 </body>
                 </html>
             `);
