@@ -112,7 +112,21 @@ class CatalogManager {
         if (!query || typeof query !== 'string') return [];
         let lowerQuery = query.toLowerCase();
 
-        // Handle brand/factory context
+        // 0. Handle Aliases / Synonyms
+        const aliases = {
+            'вфд': 'владимирская фабрика дверей',
+            'скрытые двери': 'invisible',
+            'скрытая дверь': 'invisible',
+            'скрытого монтажа': 'invisible'
+        };
+
+        for (const [alias, realName] of Object.entries(aliases)) {
+            if (lowerQuery.includes(alias)) {
+                lowerQuery = lowerQuery.replace(alias, realName);
+            }
+        }
+
+        // 1. Handle brand/factory context
         const brandKeywords = ['фабрика', 'производитель', 'изготовитель', 'бренд'];
         let isBrandSearch = false;
         if (brandKeywords.some(k => lowerQuery.includes(k))) {
@@ -138,8 +152,11 @@ class CatalogManager {
                     if (!p) return { score: 0 };
                     let score = 0;
 
-                    if (p.title && p.title.toLowerCase().includes(lowerQuery)) score += 10;
-                    if (p.category && p.category.toLowerCase().includes(lowerQuery)) score += 5;
+                    const titleLower = p.title ? p.title.toLowerCase() : '';
+                    const categoryLower = p.category ? p.category.toLowerCase() : '';
+
+                    if (titleLower.includes(lowerQuery)) score += 10;
+                    if (categoryLower.includes(lowerQuery)) score += 5;
 
                     // Specific boost for brand search in properties
                     if (p.properties) {
