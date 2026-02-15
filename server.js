@@ -249,9 +249,15 @@ app.get('/api/bitrix/webhook', async (req, res) => {
 app.post('/api/bitrix/webhook', async (req, res) => {
     // 1. Bitrix24 sends POST application/x-www-form-urlencoded
     // We need 'express.urlencoded' middleware to parse it (AUTH_ID, etc)
-    const { event, AUTH_ID, DOMAIN } = req.body;
+    let { event, AUTH_ID, DOMAIN } = req.body;
 
-    console.log('POST /api/bitrix/webhook Body Keys:', Object.keys(req.body));
+    // Fallback: Bitrix often sends DOMAIN in Query String during App Load
+    if (!DOMAIN && req.query.DOMAIN) {
+        DOMAIN = req.query.DOMAIN;
+    }
+
+    console.log('POST /api/bitrix/webhook keys:', Object.keys(req.body), 'Query keys:', Object.keys(req.query));
+    console.log('Extracted DOMAIN:', DOMAIN);
 
     // Case A: Webhook Event (Async processing)
     if (event) {
