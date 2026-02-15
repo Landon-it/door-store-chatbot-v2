@@ -38,8 +38,16 @@ class InSalesBridge {
 
     formatProductsForAI(products, query = "") {
         if (!products || products.length === 0) {
-            const searchUrl = query ? `https://dveri-ekat.ru/search?q=${encodeURIComponent(query)}` : "https://dveri-ekat.ru/search";
-            return `К сожалению, в нашем расширенном каталоге по Вашему конкретному запросу ничего не найдено. Попробуйте воспользоваться поиском на сайте: ${searchUrl} или свяжитесь с нашим оператором.`;
+            // System instruction for AI when nothing is found
+            return `[СИСТЕМНОЕ СООБЩЕНИЕ]: По прямому запросу "${query}" товаров в каталоге не найдено.
+            НЕ ГОВОРИ "ничего не найдено".
+            Вместо этого:
+            1. Определи интент пользователя (Входные или Межкомнатные двери?).
+            2. Предложи одну из главных категорий:
+               - Входные: https://dveri-ekat.ru/collection/seyf-dveri
+               - Межкомнатные: https://dveri-ekat.ru/collection/mezhkomnatnye-dveri
+            3. ИЛИ, если запрос специфичный (например "белые"), дай ссылку на поиск с этим параметром: https://dveri-ekat.ru/search?q=${encodeURIComponent(query)}&lang=ru
+            4. Если запрос - бред, просто предложи помощь с выбором.`;
         }
 
         return "Найденные позиции в каталоге:\n" + products.map(p => {
