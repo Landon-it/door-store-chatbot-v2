@@ -179,12 +179,9 @@ app.post('/api/chat', async (req, res) => {
 // GET request for Initial Install AND OAuth processing
 app.get('/api/bitrix/webhook', async (req, res) => {
     const { code } = req.query;
-    const currentDomain = req.get('host');
-    const protocol = req.protocol;
-    // For production behind proxy/Vercel/Render, ensure protocol is https
+    const currentDomain = req.get('x-forwarded-host') || req.get('host');
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
     const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
-
-    // This URL must match what you send as redirect_uri
     const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
 
     // 1. If we have 'code', it's the OAuth callback -> Exchange for token and Register
@@ -418,11 +415,10 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         `);
     }
 
-    // Advanced Actions Handler
     if (AUTH_ID && req.body.action) {
         const action = req.body.action;
-        const currentDomain = req.get('host');
-        const protocol = req.protocol;
+        const currentDomain = req.get('x-forwarded-host') || req.get('host');
+        const protocol = req.get('x-forwarded-proto') || req.protocol;
         const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
         const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
 
@@ -448,7 +444,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 const list = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
                 const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
 
-                let myBotDetails = "Bot record not found on this portal.";
+                let myBotDetails = "Bot record found, but details method failed.";
                 if (list.result) {
                     const myBot = Object.values(list.result).find(b => b.CODE === 'door_store_bot');
                     if (myBot) {
@@ -458,8 +454,20 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         } catch (e) {
                             myBotDetails = `Error fetching details: ${e.message}`;
                         }
+                    } else {
+                        myBotDetails = "Bot 'door_store_bot' not found in the list.";
                     }
                 }
+
+                const hasScope = appInfo.result && appInfo.result.SCOPE;
+                const scopeWarning = !hasScope ?
+                    `<div style="background: #ffecf0; padding: 15px; border-left: 5px solid #ff0000; margin-bottom: 20px; color: #d00;">
+                        <strong>КРИТИЧЕСКАЯ ОШИБКА:</strong> В вашем Bitrix24 приложению не выданы права доступа (Scope)!<br>
+                        Без прав Битрикс не будет отправлять вебхуки. 
+                        <br><br>
+                        <strong>Решение:</strong> Зайдите в "Локальные приложения" -> Настройки -> и добавьте галочки: 
+                        <code>im</code> (Чат-боты) и <code>imopenlines</code> (Открытые линии).
+                    </div>` : '';
 
                 return res.send(`
                     <!DOCTYPE html>
@@ -468,11 +476,13 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         <h2>🔍 Результаты диагностики</h2>
                         <div style="margin-bottom: 20px;">
                             <strong>Текущий домен:</strong> ${DOMAIN}<br>
-                            <strong>Тип установки:</strong> Локальное приложение (Box/Self-hosted)
+                            <strong>Адрес вебхука (HANDLER):</strong> ${redirectUri}
                         </div>
 
+                        ${scopeWarning}
+
                         <div style="background: #fff9db; padding: 15px; border-left: 5px solid #fcc419; margin-bottom: 20px;">
-                            <strong>Критически важно:</strong> Для работы с Открытыми линиями необходимо право <code>imopenlines</code> в Scope.
+                            <strong>Статус установки:</strong> ${appInfo.result && appInfo.result.INSTALLED ? '✅ Установлено' : '⏳ ПРОВЕРЬТЕ: Б24 помечает как "Не установлено"'}
                         </div>
 
                         <h3>1. Данные приложения (app.info):</h3>
