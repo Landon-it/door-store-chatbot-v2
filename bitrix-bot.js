@@ -8,7 +8,14 @@ class BitrixBot {
     }
 
     async callMethod(method, params, auth) {
-        const url = `https://${this.domain}/rest/${method}.json`;
+        // Use domain from auth if available (for multi-tenant or fallback), otherwise use default
+        const targetDomain = (auth && auth.domain) ? auth.domain : this.domain;
+
+        if (!targetDomain) {
+            throw new Error(`BitrixBot: Domain is undefined. (method=${method}, auth.domain=${auth ? auth.domain : 'undefined'}, this.domain=${this.domain})`);
+        }
+
+        const url = `https://${targetDomain}/rest/${method}.json`;
         const body = {
             ...params,
             auth: auth.access_token
