@@ -34,7 +34,7 @@ const bitrixBot = new BitrixBot(
 const DEFAULT_CONFIG = {
     storeName: "Двери Екатеринбурга",
     operator: {
-        phone: "+7 (343) 340-62-15",
+        phone: "+7 (999) 340-62-15",
         email: "office@dveri-ekat.ru",
         workHours: "Пн-Пт: 10:00-20:00, Сб-Вс: 10:00-19:00"
     }
