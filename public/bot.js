@@ -10,10 +10,10 @@
         'chatbot.js'
     ];
 
-    // 1. Ingest Styles
+    // 1. Ingest Styles with cache busting
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `${BASE_URL}/styles.css`;
+    link.href = `${BASE_URL}/styles.css?v=${Date.now()}`;
     document.head.appendChild(link);
 
     // 2. Inject HTML Structure
@@ -82,7 +82,7 @@
         if (index >= SCRIPTS.length) return;
 
         const script = document.createElement('script');
-        script.src = `${BASE_URL}/${SCRIPTS[index]}`;
+        script.src = `${BASE_URL}/${SCRIPTS[index]}?v=${Date.now()}`;
         script.onload = () => loadScript(index + 1);
         document.body.appendChild(script);
     }
