@@ -64,6 +64,17 @@ class BitrixBot {
             'MESSAGE': message,
         }, auth);
     }
+
+    async getBotList(auth) {
+        return await this.callMethod('imbot.bot.list', {}, auth);
+    }
+
+    async updateBot(botId, params, auth) {
+        return await this.callMethod('imbot.update', {
+            'BOT_ID': botId,
+            'FIELDS': params
+        }, auth);
+    }
 }
 
 export default BitrixBot;
