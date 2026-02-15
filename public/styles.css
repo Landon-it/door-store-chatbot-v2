@@ -62,6 +62,10 @@
 .chat-widget {
     font-family: var(--font-family);
     line-height: 1.6;
+    color: var(--text-primary);
+    /* Fix for invisible text */
+    text-align: left;
+    /* Ensure text alignment is consistent */
 }
 
 
@@ -70,7 +74,8 @@
     position: fixed;
     bottom: 20px;
     left: 20px;
-    z-index: 999999; /* Higher z-index for InSales compatibility */
+    z-index: 999999;
+    /* Higher z-index for InSales compatibility */
 }
 
 /* ===== Chat Container ===== */
@@ -388,7 +393,8 @@
 }
 
 /* Contact Links */
-.contact-link, .message-text a {
+.contact-link,
+.message-text a {
     color: var(--accent);
     text-decoration: none;
     font-weight: 600;
@@ -396,7 +402,8 @@
     transition: all 0.3s ease;
 }
 
-.contact-link:hover, .message-text a:hover {
+.contact-link:hover,
+.message-text a:hover {
     color: var(--accent-light);
     border-bottom-style: solid;
     padding-bottom: 1px;
@@ -635,16 +642,16 @@
 
 /* ===== Accessibility ===== */
 @media (prefers-reduced-motion: reduce) {
-    * {
+    .chat-widget * {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
 }
 
-/* Focus Styles */
-button:focus-visible,
-textarea:focus-visible {
+/* Focus Styles - Scoped */
+.chat-widget button:focus-visible,
+.chat-widget textarea:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
 }
