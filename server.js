@@ -286,8 +286,9 @@ app.get('/api/bitrix/webhook', async (req, res) => {
     }
 
     // 2. If NO 'code', assume it's the first visit (Open Application) -> Redirect to OAuth
-    // This forces the user to authorize/install the app, returning to this specific URL with a code.
-    const oauthUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/authorize/?client_id=${process.env.BITRIX24_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    // Explicitly requesting scopes is CRITICAL for Bitrix24 Box to actually grant them.
+    const scopes = 'im,imbot,imopenlines,rest,placement,crm';
+    const oauthUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/authorize/?client_id=${process.env.BITRIX24_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}`;
 
     console.log('Redirecting to OAuth:', oauthUrl);
 
