@@ -164,57 +164,126 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Bitrix24 Webhook Handler
-// Bitrix24 Webhook Handler
 // GET request for initial configuration/checks AND OAuth callback
 app.get('/api/bitrix/webhook', async (req, res) => {
+    // If we have 'code', it's the OAuth flow (which failed for the user, but we'll keep it just in case)
     const { code } = req.query;
 
-    if (code) {
-        // Exchange code for access token
-        try {
-            const tokenUrl = `https://oauth.bitrix.info/oauth/token/?grant_type=authorization_code&client_id=${process.env.BITRIX24_CLIENT_ID}&client_secret=${process.env.BITRIX24_CLIENT_SECRET}&code=${code}`;
-            const tokenResponse = await fetch(tokenUrl);
-            const tokenData = await tokenResponse.json();
-
-            if (tokenData.error) {
-                return res.send(`<h1>Error: ${tokenData.error}</h1><p>${tokenData.error_description}</p>`);
-            }
-
-            // Register Bot
-            const webhookUrl = `${req.protocol}://${req.get('host')}/api/bitrix/webhook`;
-            console.log('Registering bot with URL:', webhookUrl);
-
-            // Use the access token from OAuth to register
-            const regResult = await bitrixBot.registerBot(webhookUrl, { access_token: tokenData.access_token });
-
-            if (regResult.error) {
-                return res.send(`<h1>Registration Failed</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
-            }
-
-            return res.send(`
-                <html>
-                    <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
-                        <h1>✅ Бот успешно зарегистрирован!</h1>
-                        <p>Теперь он должен появиться в списке "Открытые линии" -> "Чат-боты".</p>
-                        <p>Можете закрыть это окно.</p>
-                    </body>
-                </html>
-            `);
-
-        } catch (error) {
-            console.error('Registration Error:', error);
-            return res.send(`<h1>Server Error</h1><pre>${error.message}</pre>`);
-        }
-    }
-
     res.send(`
+        <!DOCTYPE html>
         <html>
-            <head><title>Bitrix24 Bot Server</title></head>
-            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-                <h1>✅ Bot Server is Running!</h1>
-                <p>Status: <strong>Active</strong></p>
-                <p>Waiting for webhook events...</p>
-            </body>
+        <head>
+            <meta charset="UTF-8">
+            <title>Bitrix24 Bot Installation</title>
+            <script src="//api.bitrix24.com/api/v1/"></script>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { padding: 40px; text-align: center; }
+                .status-card { max-width: 600px; margin: 0 auto; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 8px; }
+            </style>
+        </head>
+        <body>
+            <div class="status-card border">
+                <h2 class="mb-4">🤖 Настройка Чат-бота</h2>
+                <div id="status" class="alert alert-info">
+                    Инициализация...
+                </div>
+                <div id="details" class="text-muted small text-start"></div>
+                
+                <button id="retryBtn" class="btn btn-primary mt-3" style="display:none;" onclick="registerBot()">Попробовать снова</button>
+            </div>
+
+            <script>
+                // Construct the full webhook URL
+                const webhookUrl = '${req.protocol}://${req.get('host')}/api/bitrix/webhook';
+                
+                // Bot parameters
+                const botParams = {
+                    'CODE': 'door_store_bot',
+                    'TYPE': 'B',
+                    'EVENT_MESSAGE_ADD': webhookUrl,
+                    'EVENT_WELCOME_MESSAGE': webhookUrl,
+                    'PROPERTIES': {
+                        'NAME': 'Виртуальный консультант',
+                        'COLOR': 'GREEN',
+                        'EMAIL': 'office@dveri-ekat.ru',
+                        'WORK_POSITION': 'Бот-консультант'
+                    }
+                };
+
+                function log(msg, type = 'info') {
+                    const statusEl = document.getElementById('status');
+                    statusEl.className = 'alert alert-' + type;
+                    statusEl.innerHTML = msg;
+                    console.log(msg);
+                }
+
+                function registerBot() {
+                    log('⏳ Регистрируем бота...', 'warning');
+                    
+                    if (!window.BX24) {
+                         log('⚠️ Ошибка: Библиотека BX24 не найдена. Попробуйте обновить страницу.', 'danger');
+                         return;
+                    }
+
+                    BX24.init(function(){
+                        console.log('BX24 Init successful');
+                        
+                        // Check if bot is already registered
+                        BX24.callMethod('imbot.bot.list', {}, function(result) {
+                            if(result.error()) {
+                                log('Ошибка при проверке ботов: ' + result.error(), 'danger');
+                                document.getElementById('details').innerText = JSON.stringify(result.error(), null, 2);
+                                return;
+                            }
+                            
+                            const bots = result.data();
+                            // Check if bot exists by code
+                            const existingBot = Object.values(bots).find(b => b.CODE === 'door_store_bot');
+                            
+                            if (existingBot) {
+                                // Update existing bot
+                                log('♻️ Бот уже существует (ID: ' + existingBot.ID + '). Обновляем настройки...', 'info');
+                                BX24.callMethod('imbot.update', {
+                                    'BOT_ID': existingBot.ID,
+                                    'FIELDS': botParams
+                                }, function(updateRes) {
+                                    if(updateRes.error()) {
+                                        log('Ошибка обновления: ' + updateRes.error(), 'danger');
+                                        document.getElementById('details').innerText = JSON.stringify(updateRes.error(), null, 2);
+                                    } else {
+                                        log('✅ Бот успешно обновлен! Ищите "Виртуальный консультант" в настройках Открытых линий.', 'success');
+                                    }
+                                });
+                            } else {
+                                // Register new bot
+                                BX24.callMethod('imbot.register', botParams, function(regRes) {
+                                    if(regRes.error()) {
+                                        log('❌ Ошибка регистрации: ' + regRes.error(), 'danger');
+                                        document.getElementById('details').innerText = JSON.stringify(regRes.error(), null, 2);
+                                        document.getElementById('retryBtn').style.display = 'inline-block';
+                                    } else {
+                                        log('✅ Бот успешно зарегистрирован! ID: ' + regRes.data(), 'success');
+                                    }
+                                });
+                            }
+                        });
+                    });
+                }
+
+                // Check if running inside Bitrix24 iframe
+                if (window.name) { // Bitrix usually sets window.name
+                     setTimeout(registerBot, 500); // Give a small delay for BX24 to load exactly
+                } else {
+                     // Try anyway or warn
+                     if (document.referrer && document.referrer.includes('bitrix')) {
+                        setTimeout(registerBot, 500);
+                     } else {
+                        log('⚠️ Откройте это приложение ВНУТРИ Bitrix24 (через меню "Разработчикам" -> "Открыть приложение").', 'warning');
+                     }
+                }
+            </script>
+        </body>
         </html>
     `);
 });
