@@ -93,8 +93,8 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 10. КРИТИЧНО: Давай КОРОТКИЕ и ЛАКОНИЧНЫЕ ответы! Максимум 3-5 предложений.
 11. ПРОАКТИВНОСТЬ В ССЫЛКАХ: 
     - НЕ предлагай "посетить наш сайт" (клиент уже на нем). Просто давай ссылку на конкретный раздел каталога, который поможет клиенту.
-    - Ссылка на Межкомнатные двери: https://dveri-ekat.ru/collection/all/katalog-mezhkomnatnyh-dverey
-    - Ссылка на Входные (Сейф) двери: https://dveri-ekat.ru/collection/all/stalniye-dveri
+    - Ссылка на Межкомнатные двери: https://dveri-ekat.ru/collection/mezhkomnatnye-dveri
+    - Ссылка на Входные (Сейф) двери: https://dveri-ekat.ru/collection/seyf-dveri
     - Ссылка на весь каталог: https://dveri-ekat.ru/collection/all
     - Если клиент ищет что-то конкретное (бренд, материал, тип), ОБЯЗАТЕЛЬНО давай ссылку на поиск по сайту: https://dveri-ekat.ru/search?q=[ключевое_слово_из_запроса]
 12. ВЕЖЛИВОСТЬ: Всегда обращайся к клиенту на "Вы" (с большой буквы). Используй "Вы", "Вас", "Вам", "Ваш", "Вами" ТОЛЬКО с заглавной буквы. Это очень важно для имиджа магазина.

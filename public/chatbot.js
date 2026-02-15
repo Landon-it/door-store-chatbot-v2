@@ -247,7 +247,7 @@ class DoorStoreChatbot {
             for (const [key, material] of Object.entries(doorInfo.materials)) {
                 response += `<strong>${material.name}</strong> - ${material.priceRange}\n`;
             }
-            response += `\nКакой материал Вас интересует? Все модели в разделе: https://dveri-ekat.ru/collection/all/stalniye-dveri`;
+            response += `\nКакой материал Вас интересует? Все модели в разделе: https://dveri-ekat.ru/collection/seyf-dveri`;
         }
 
         return this.maybeAddHumor(response);
@@ -282,7 +282,7 @@ class DoorStoreChatbot {
             for (const [key, material] of Object.entries(doorInfo.materials)) {
                 response += `<strong>${material.name}</strong> - ${material.priceRange}\n`;
             }
-            response += `\nКакой материал предпочитаете? Посмотрите модели в разделе: https://dveri-ekat.ru/collection/all/katalog-mezhkomnatnyh-dverey`;
+            response += `\nКакой материал предпочитаете? Посмотрите модели в разделе: https://dveri-ekat.ru/collection/mezhkomnatnye-dveri`;
         }
 
         return this.maybeAddHumor(response);
