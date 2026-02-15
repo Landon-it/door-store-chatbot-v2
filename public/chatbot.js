@@ -214,6 +214,10 @@ class DoorStoreChatbot {
             return this.getCareInfo(messageLower);
         }
 
+        if (this.matchesKeywords(messageLower, ['почта', 'email', 'емейл', 'написать'])) {
+            return `📧 Наша электронная почта: <a href="mailto:office@dveri-ekat.ru">office@dveri-ekat.ru</a>\nПишите нам по любым вопросам!`;
+        }
+
         if (this.matchesKeywords(messageLower, ['цена', 'стоимость', 'бюджет', 'сколько стоит', 'стоят'])) {
             return this.getBudgetInfo(messageLower);
         }
