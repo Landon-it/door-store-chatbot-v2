@@ -74,10 +74,10 @@ const CONFIG = {
     // API Integration (Vercel Proxy)
     api: {
         enabled: true,
-        // API Base URL for Vercel deployment
-        baseUrl: 'https://chatdveriekat.vercel.app',
-        // API Key is now securely stored in Vercel Environment Variables (GROQ_API_KEY)
-        // logic moved to /api/chat.js
+        // API Base URL for Render deployment
+        baseUrl: 'https://door-store-chatbot-v2.onrender.com',
+        // API Key is now securely stored in Render Environment Variables (GROQ_API_KEY)
+        // logic moved to server.js
         provider: 'groq'
     }
 
