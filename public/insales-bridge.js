@@ -39,7 +39,7 @@ class InSalesBridge {
     formatProductsForAI(products, query = "") {
         if (!products || products.length === 0) {
             const searchUrl = query ? `https://dveri-ekat.ru/search?q=${encodeURIComponent(query)}` : "https://dveri-ekat.ru/search";
-            return `К сожалению, в нашем расширенном каталоге по вашему конкретному запросу ничего не найдено. Попробуйте воспользоваться поиском на сайте: ${searchUrl} или свяжитесь с нашим оператором.`;
+            return `К сожалению, в нашем расширенном каталоге по Вашему конкретному запросу ничего не найдено. Попробуйте воспользоваться поиском на сайте: ${searchUrl} или свяжитесь с нашим оператором.`;
         }
 
         return "Найденные позиции в каталоге:\n" + products.map(p => {
