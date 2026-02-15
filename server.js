@@ -348,7 +348,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
     // Case B: Application Load (POST from Bitrix Interface)
     if (AUTH_ID && !req.body.action) {
-        console.log('App loaded via POST. Showing Setup UI.');
+        console.log('App loaded via POST. Showing advanced Management UI.');
 
         return res.send(`
             <!DOCTYPE html>
@@ -357,30 +357,49 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 <meta charset="utf-8">
                 <style>
                     body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; text-align: center; padding: 40px; background: #f0f4f8; color: #334e68; }
-                    .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); display: inline-block; max-width: 500px; width: 100%; border: 1px solid #e2e8f0; }
-                    h1 { color: #102a43; margin-top: 0; font-size: 24px; }
+                    .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); display: inline-block; max-width: 600px; width: 100%; border: 1px solid #e2e8f0; text-align: left; }
+                    h1 { color: #102a43; margin-top: 0; font-size: 24px; text-align: center; }
                     p { line-height: 1.6; color: #486581; margin-bottom: 25px; }
-                    .btn { background: #0091ea; color: white; border: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: all 0.2s; font-weight: 600; box-shadow: 0 4px 6px rgba(0,145,234,0.2); }
-                    .btn:hover { background: #007bc7; transform: translateY(-1px); box-shadow: 0 6px 12px rgba(0,145,234,0.3); }
-                    .info { margin-top: 35px; text-align: left; padding: 20px; background: #fff9db; border-radius: 8px; border-left: 5px solid #fcc419; }
-                    .info h3 { margin-top: 0; font-size: 16px; color: #856404; }
+                    .btn { background: #0091ea; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 15px; cursor: pointer; transition: all 0.2s; font-weight: 600; margin-bottom: 10px; width: 100%; display: block; text-align: center; text-decoration: none; }
+                    .btn:hover { background: #007bc7; transform: translateY(-1px); }
+                    .btn-secondary { background: #627d98; }
+                    .btn-danger { background: #cc3300; }
+                    .info { margin-top: 25px; padding: 15px; background: #eef2f7; border-radius: 8px; font-size: 13px; color: #334e68; }
+                    .section { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+                    label { font-weight: bold; display: block; margin-bottom: 10px; color: #102a43; }
                 </style>
             </head>
             <body>
                 <div class="card">
-                    <h1>🤖 Настройка Чат-бота</h1>
-                    <p>Для активации "Виртуального консультанта" и его регистрации в вашем Битрикс24, пожалуйста, нажмите кнопку ниже.</p>
+                    <h1>🤖 Управление ботом</h1>
+                    <p>Используйте эти инструменты для настройки и диагностики "Виртуального консультанта".</p>
                     
-                    <form method="POST">
-                        <!-- Передаем все полученные от Битрикс параметры обратно -->
-                        ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
-                        <input type="hidden" name="action" value="install">
-                        <button type="submit" class="btn">🚀 Установить / Обновить бота</button>
-                    </form>
+                    <div class="section">
+                        <label>1. Основные действия:</label>
+                        <form method="POST">
+                            ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
+                            <input type="hidden" name="action" value="install">
+                            <button type="submit" class="btn">🚀 Установить / Обновить (Стандарт)</button>
+                        </form>
+
+                        <form method="POST">
+                            ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
+                            <input type="hidden" name="action" value="force_reinstall">
+                            <button type="submit" class="btn btn-secondary">♻️ Полная переустановка (Сброс + Регистрация)</button>
+                        </form>
+                    </div>
+
+                    <div class="section">
+                        <label>2. Инструменты отладки:</label>
+                        <form method="POST">
+                            ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
+                            <input type="hidden" name="action" value="diagnostics">
+                            <button type="submit" class="btn btn-secondary">🔍 Посмотреть список ботов и права доступа</button>
+                        </form>
+                    </div>
 
                     <div class="info">
-                        <h3>ℹ️ Инструкция:</h3>
-                        <p style="font-size: 14px; margin-bottom: 0;">После нажатия вы сможете выбрать бота в настройках <b>Открытых линий</b> (раздел "Чат-боты").</p>
+                        <strong>Подсказка:</strong> В коробочных версиях Битрикс24 иногда требуется "Полная переустановка", чтобы изменения в настройках чат-ботов вступили в силу.
                     </div>
                 </div>
             </body>
@@ -388,36 +407,71 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         `);
     }
 
-    // Case C: Explicit Install Action
-    if (AUTH_ID && req.body.action === 'install') {
-        console.log('Action: install. Registering bot...');
-
+    // Advanced Actions Handler
+    if (AUTH_ID && req.body.action) {
+        const action = req.body.action;
         const currentDomain = req.get('host');
         const protocol = req.protocol;
         const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
         const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
 
-        try {
-            const botParams = {
-                'CODE': 'door_store_bot',
-                'TYPE': 'B',
-                'EVENT_HANDLER': redirectUri,
+        const botParams = {
+            'CODE': 'door_store_bot',
+            'TYPE': 'B',
+            'EVENT_HANDLER': redirectUri,
+            'OPENLINE': 'Y',
+            'PROPERTIES': {
+                'NAME': 'Виртуальный консультант',
+                'COLOR': 'GREEN',
+                'EMAIL': 'bot@dveri-ekat.ru',
+                'PERSONAL_BIRTHDAY': '2024-02-15',
+                'PERSONAL_WWW': 'https://dveri-ekat.ru',
+                'PERSONAL_GENDER': 'M',
                 'OPENLINE': 'Y',
-                'PROPERTIES': {
-                    'NAME': 'Виртуальный консультант',
-                    'COLOR': 'GREEN',
-                    'EMAIL': 'bot@dveri-ekat.ru',
-                    'PERSONAL_BIRTHDAY': '2024-02-15',
-                    'PERSONAL_WWW': 'https://dveri-ekat.ru',
-                    'PERSONAL_GENDER': 'M',
-                    'OPENLINE': 'Y',
-                }
-            };
+            }
+        };
 
+        try {
+            // ACTION: Diagnostics
+            if (action === 'diagnostics') {
+                const list = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
+                const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
+
+                return res.send(`
+                    <!DOCTYPE html>
+                    <html>
+                    <body style="font-family: sans-serif; padding: 20px; color: #333;">
+                        <h2>🔍 Результаты диагностики</h2>
+                        <div><strong>Текущий домен:</strong> ${DOMAIN}</div>
+                        <div><strong>Права доступа (Scope):</strong> ${appInfo.result ? appInfo.result.SCOPE : 'N/A'}</div>
+                        <h3>Список ботов на портале:</h3>
+                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; max-height: 400px; overflow: auto;">${JSON.stringify(list, null, 2)}</pre>
+                        <a href="javascript:history.back()" style="display: inline-block; margin-top: 20px; color: #0091ea;">⬅️ Вернуться назад</a>
+                    </body>
+                    </html>
+                `);
+            }
+
+            // ACTION: Force Reinstall
+            if (action === 'force_reinstall') {
+                console.log('Action: force_reinstall. Finding existing bot to remove...');
+                const list = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
+                if (list.result) {
+                    const existing = Object.values(list.result).find(b => b.CODE === 'door_store_bot');
+                    if (existing) {
+                        console.log(`Unregistering bot ID=${existing.ID}...`);
+                        await bitrixBot.unregisterBot(existing.ID, { access_token: AUTH_ID, domain: DOMAIN });
+                    }
+                }
+                // Continue to install fresh...
+            }
+
+            // ACTION: Install / Re-install part
             let botId = null;
             const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: AUTH_ID, domain: DOMAIN });
 
             if (regResult.error) {
+                // If it exists and we are NOT in force_reinstall, try to update
                 const listResult = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
                 if (listResult.result) {
                     const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
@@ -436,23 +490,12 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             return res.send(`
                 <!DOCTYPE html>
                 <html>
-                <head>
-                    <script src="//api.bitrix24.com/api/v1/"></script>
-                    <script>
-                        function goToOpenLines() { BX24.openPath('/contact_center/openlines'); }
-                    </script>
-                    <style>
-                        body { font-family: sans-serif; text-align: center; padding: 50px; background: #e8f5e9; color: #2e7d32; }
-                        .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; }
-                        .btn { background: #4caf50; color: white; border: none; padding: 12px 30px; border-radius: 6px; cursor: pointer; margin-top: 25px; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
+                <head><script src="//api.bitrix24.com/api/v1/"></script><script>function goToOpenLines() { BX24.openPath('/contact_center/openlines'); }</script></head>
+                <body style="font-family: sans-serif; text-align: center; padding: 50px; background: #e8f5e9; color: #2e7d32;">
+                    <div style="background: white; padding: 40px; border-radius: 16px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                         <h1>✅ Успешно!</h1>
                         <p>Бот <b>Виртуальный консультант</b> зарегистрирован (ID: ${botId}).</p>
-                        <p>Теперь вы можете выбрать его в настройках любой Открытой Линии.</p>
-                        <button class="btn" onclick="goToOpenLines()">⚙️ Перейти к настройкам</button>
+                        <button style="background: #4caf50; color: white; border: none; padding: 12px 30px; border-radius: 6px; cursor: pointer; margin-top: 25px; font-weight: bold;" onclick="goToOpenLines()">⚙️ Перейти к настройкам</button>
                     </div>
                 </body>
                 </html>

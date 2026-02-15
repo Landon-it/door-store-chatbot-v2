@@ -74,6 +74,16 @@ class BitrixBot {
             ...params
         }, auth);
     }
+
+    async unregisterBot(botId, auth) {
+        return await this.callMethod('imbot.unregister', {
+            'BOT_ID': botId
+        }, auth);
+    }
+
+    async appInfo(auth) {
+        return await this.callMethod('app.info', {}, auth);
+    }
 }
 
 export default BitrixBot;
