@@ -48,16 +48,19 @@ class InSalesBridge {
                     const products = Array.isArray(data) ? data : (data.products || []);
 
                     if (products.length > 0) {
-                        this.catalog = products.map(p => ({
-                            id: p.id,
-                            title: p.title,
-                            handle: p.handle,
-                            price: p.variants?.[0]?.price || p.price,
-                            url: `/product/${p.handle}`,
-                            image: p.images?.[0]?.original_url || p.first_image?.original_url,
-                            category: p.category_id,
-                            description: this.stripHtml(p.description || '').substring(0, 150)
-                        }));
+                        this.catalog = products.map(p => {
+                            const handle = p.handle || p.permalink || p.id;
+                            return {
+                                id: p.id,
+                                title: p.title,
+                                handle: handle,
+                                price: p.variants?.[0]?.price || p.price,
+                                url: `/product/${handle}`,
+                                image: p.images?.[0]?.original_url || p.first_image?.original_url,
+                                category: p.category_id,
+                                description: this.stripHtml(p.description || '').substring(0, 150)
+                            };
+                        });
 
                         localStorage.setItem(this.cacheKey, JSON.stringify({
                             data: this.catalog,
