@@ -80,8 +80,9 @@
 
 /* ===== Chat Container ===== */
 .chat-container {
-    width: 400px;
-    height: 600px;
+    width: 480px;
+    height: 750px;
+    max-height: calc(100vh - 120px);
     background: var(--bg-secondary);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-lg);
@@ -376,9 +377,17 @@
 }
 
 .message-text {
-    font-size: 0.875rem;
-    line-height: 1.5;
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
     word-wrap: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.message-text a {
+    word-break: break-all;
+    display: inline-block;
+    max-width: 100%;
 }
 
 .message-time {
