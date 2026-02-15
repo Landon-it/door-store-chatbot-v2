@@ -40,6 +40,7 @@ class BitrixBot {
             'TYPE': 'B',
             'EVENT_MESSAGE_ADD': webhookUrl,
             'EVENT_WELCOME_MESSAGE': webhookUrl,
+            'EVENT_BOT_DELETE': webhookUrl,
             'PROPERTIES': {
                 'NAME': 'Виртуальный консультант',
                 'COLOR': 'GREEN',
