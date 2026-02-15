@@ -75,7 +75,7 @@ const CONFIG = {
     api: {
         enabled: true,
         // API Base URL for Render deployment
-        baseUrl: 'https://door-store-chatbot-v2.onrender.com',
+        baseUrl: 'https://door-store-chatbot.onrender.com',
         // API Key is now securely stored in Render Environment Variables (GROQ_API_KEY)
         // logic moved to server.js
         provider: 'groq'

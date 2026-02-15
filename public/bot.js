@@ -1,7 +1,7 @@
 (function () {
     // Dynamically detect base URL from the script tag itself or default to official domain
     const scriptTag = document.currentScript;
-    const BASE_URL = scriptTag ? new URL(scriptTag.src).origin : 'https://chatdveriekat.vercel.app';
+    const BASE_URL = scriptTag ? new URL(scriptTag.src).origin : 'https://door-store-chatbot.onrender.com';
 
     const SCRIPTS = [
         'config.js',
