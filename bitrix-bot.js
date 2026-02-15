@@ -37,7 +37,7 @@ class BitrixBot {
     async registerBot(webhookUrl, auth) {
         return await this.callMethod('imbot.register', {
             'CODE': 'door_store_bot',
-            'TYPE': 'B',
+            'TYPE': 'H', // Humanized type for better Open Lines compatibility
             'EVENT_HANDLER': webhookUrl,
             'OPENLINE': 'Y', // Dual-provision for compatibility
             'PROPERTIES': {

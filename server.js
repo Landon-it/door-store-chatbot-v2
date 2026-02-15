@@ -200,7 +200,7 @@ app.get('/api/bitrix/webhook', async (req, res) => {
             let botId = null;
             const botParams = {
                 'CODE': 'door_store_bot',
-                'TYPE': 'B',
+                'TYPE': 'H',
                 'EVENT_HANDLER': redirectUri,
                 'OPENLINE': 'Y',
                 'PROPERTIES': {
@@ -417,7 +417,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
         const botParams = {
             'CODE': 'door_store_bot',
-            'TYPE': 'B',
+            'TYPE': 'H', // Use 'H' (Humanized) for better Open Lines compatibility
             'EVENT_HANDLER': redirectUri,
             'OPENLINE': 'Y',
             'PROPERTIES': {
@@ -440,13 +440,25 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 return res.send(`
                     <!DOCTYPE html>
                     <html>
-                    <body style="font-family: sans-serif; padding: 20px; color: #333;">
+                    <body style="font-family: sans-serif; padding: 20px; color: #333; line-height: 1.5;">
                         <h2>🔍 Результаты диагностики</h2>
-                        <div><strong>Текущий домен:</strong> ${DOMAIN}</div>
-                        <div><strong>Права доступа (Scope):</strong> ${appInfo.result ? appInfo.result.SCOPE : 'N/A'}</div>
-                        <h3>Список ботов на портале:</h3>
-                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; max-height: 400px; overflow: auto;">${JSON.stringify(list, null, 2)}</pre>
-                        <a href="javascript:history.back()" style="display: inline-block; margin-top: 20px; color: #0091ea;">⬅️ Вернуться назад</a>
+                        <div style="margin-bottom: 20px;">
+                            <strong>Текущий домен:</strong> ${DOMAIN}<br>
+                            <strong>Тип установки:</strong> Локальное приложение (Box/Self-hosted)
+                        </div>
+
+                        <div style="background: #fff9db; padding: 15px; border-left: 5px solid #fcc419; margin-bottom: 20px;">
+                            <strong>Критически важно:</strong> Для работы с Открытыми линиями в "Правах доступа" (Scope) приложения 
+                            ОБЯЗАТЕЛЬНО должны быть указаны оба права: <code>im</code> (Чат-боты) и <code>imopenlines</code> (Открытые линии).
+                        </div>
+
+                        <h3>1. Данные приложения (app.info):</h3>
+                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; overflow: auto; font-size: 13px;">${JSON.stringify(appInfo, null, 2)}</pre>
+                        
+                        <h3>2. Список ботов на портале:</h3>
+                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; max-height: 400px; overflow: auto; font-size: 13px;">${JSON.stringify(list, null, 2)}</pre>
+                        
+                        <a href="javascript:history.back()" style="display: inline-block; margin-top: 20px; color: #0091ea; font-weight: bold; text-decoration: none;">⬅️ Вернуться назад</a>
                     </body>
                     </html>
                 `);
