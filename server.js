@@ -104,7 +104,8 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
     - "Доставка" — раздел: https://dveri-ekat.ru/page/delivery
     - "Оплата" — раздел: https://dveri-ekat.ru/page/payment
     - "Установка" — ссылайся на раздел "Наши работы": https://dveri-ekat.ru/blogs/completework
-    - "Фурнитура" — это разделы "Замки" (https://dveri-ekat.ru/collection/zamki) и "Ручки" (https://dveri-ekat.ru/collection/ruchki). Обязательно предлагай эти ссылки при запросе фурнитуры.`;
+    - "Фурнитура" — это разделы "Замки" (https://dveri-ekat.ru/collection/zamki) и "Ручки" (https://dveri-ekat.ru/collection/ruchki). Обязательно предлагай эти ссылки при запросе фурнитуры.
+    - "Сейф-двери" или "сейфы" — это всегда "Входные двери".`;
 
     if (productsContext) {
         systemPrompt += `\n\nВ нашем каталоге найдены реальные товары (используй ТОЛЬКО их для конкретных рекомендаций по моделям и брендам):\n${productsContext}`;
