@@ -47,7 +47,10 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// VITAL: Parse URL-encoded bodies (sent by Bitrix24 form POSTs)
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/docs', express.static(path.join(__dirname, 'docs')));
 
@@ -244,38 +247,86 @@ app.get('/api/bitrix/webhook', async (req, res) => {
 });
 
 app.post('/api/bitrix/webhook', async (req, res) => {
-    const event = req.body.event;
-    const data = req.body.data;
-    const auth = req.body.auth;
+    // 1. Bitrix24 sends POST application/x-www-form-urlencoded
+    // We need 'express.urlencoded' middleware to parse it (AUTH_ID, etc)
+    const { event, AUTH_ID, DOMAIN } = req.body;
 
-    // Acknowledge the webhook immediately
-    res.status(200).send('');
+    console.log('POST /api/bitrix/webhook Body Keys:', Object.keys(req.body));
 
-    if (event === 'ONIMBOTMESSAGEADD') {
-        const userMessage = data.PARAMS.MESSAGE;
-        const chatId = data.PARAMS.DIALOG_ID;
-        const botId = data.BOT_ID;
+    // Case A: Webhook Event (Async processing)
+    if (event) {
+        console.log('Received Webhook Event:', event);
+        res.status(200).send(''); // Acknowledge immediately
+
+        const data = req.body.data;
+        const auth = req.body.auth;
+
+        if (event === 'ONIMBOTMESSAGEADD') {
+            const userMessage = data.PARAMS.MESSAGE;
+            const chatId = data.PARAMS.DIALOG_ID;
+            const botId = data.BOT_ID;
+
+            try {
+                // Search catalog for context
+                const searchResults = catalogManager.search(userMessage);
+                const productsContext = searchResults.map(p => {
+                    const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
+                    return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''}`;
+                }).join('\n');
+
+                // Generate AI response
+                let aiResponse = await generateAIResponse(userMessage, [], productsContext);
+
+                // Remove HTML tags for Bitrix24 if any (Bitrix uses its own BB-codes or plain text)
+                aiResponse = aiResponse.replace(/<[^>]*>?/gm, '');
+
+                // Send back to Bitrix24
+                await bitrixBot.sendMessage(botId, chatId, aiResponse, auth);
+            } catch (error) {
+                console.error('Bitrix24 Error:', error);
+            }
+        }
+        return;
+    }
+
+    // Case B: Application Load (POST from Bitrix Interface)
+    // Bitrix sends AUTH_ID (access_token) in body when opening iframe
+    if (AUTH_ID) {
+        console.log('App loaded via POST with AUTH_ID. Use this to register bot.');
+
+        // We can register immediately using this token!
+        const currentDomain = req.get('host');
+        const protocol = req.protocol;
+        const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
+        const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
 
         try {
-            // Search catalog for context
-            const searchResults = catalogManager.search(userMessage);
-            const productsContext = searchResults.map(p => {
-                const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
-                return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''}`;
-            }).join('\n');
+            const regResult = await bitrixBot.registerBot(redirectUri, {
+                access_token: AUTH_ID,
+                domain: DOMAIN // e.g. bitrix96.ru
+            });
 
-            // Generate AI response
-            let aiResponse = await generateAIResponse(userMessage, [], productsContext);
+            if (regResult.error) {
+                return res.send(`<h1>Registration Failed (POST)</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+            }
 
-            // Remove HTML tags for Bitrix24 if any (Bitrix uses its own BB-codes or plain text)
-            aiResponse = aiResponse.replace(/<[^>]*>?/gm, '');
-
-            // Send back to Bitrix24
-            await bitrixBot.sendMessage(botId, chatId, aiResponse, auth);
+            return res.send(`
+                <!DOCTYPE html>
+                <html>
+                <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
+                    <h1>✅ Бот успешно зарегистрирован!</h1>
+                    <p>Ищите "Виртуальный консультант" в настройках Открытых линий.</p>
+                </body>
+                </html>
+            `);
         } catch (error) {
-            console.error('Bitrix24 Error:', error);
+            console.error('Registration POST Error:', error);
+            return res.send(`<h1>Error</h1><pre>${error.message}</pre>`);
         }
     }
+
+    // Default fallback
+    res.status(200).send('Bitrix24 Bot Server. No event or auth data received.');
 });
 
 app.listen(PORT, () => {
