@@ -53,9 +53,16 @@ app.use('/docs', express.static(path.join(__dirname, 'docs')));
 
 // Catalog Search API
 app.get('/api/search', (req, res) => {
-    const { q } = req.query;
-    const results = catalogManager.search(q);
-    res.json(results);
+    try {
+        const { q } = req.query;
+        console.log(`Searching for: "${q}"`);
+        const results = catalogManager.search(q);
+        console.log(`Found ${results.length} results.`);
+        res.json(results);
+    } catch (error) {
+        console.error('Search API Internal Error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Root route to serve index.html

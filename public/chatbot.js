@@ -115,8 +115,8 @@ class DoorStoreChatbot {
         let response;
         // Try Groq API first if enabled (Proxy handles the secret key)
         if (CONFIG.api.enabled) {
-            // Search for relevant products in InSales catalog
-            const relevantProducts = typeof INSALES_BRIDGE !== 'undefined' ? INSALES_BRIDGE.findProducts(message) : [];
+            // Search for relevant products in catalog
+            const relevantProducts = typeof INSALES_BRIDGE !== 'undefined' ? await INSALES_BRIDGE.findProducts(message) : [];
             const productsContext = relevantProducts.length > 0 ? INSALES_BRIDGE.formatProductsForAI(relevantProducts) : null;
 
             response = await this.callGroqAPI(message, productsContext);
