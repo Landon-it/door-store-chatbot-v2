@@ -102,7 +102,7 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 14. СТРОГО ПО КАТАЛОГУ: Если в предоставленном списке товаров (Context) нет подходящих позиций, не выдумывай названия. Честно скажи, что таких моделей сейчас нет, и предложи похожие из списка или поиск по всему сайту.
 15. СИНОНИМЫ И РАЗДЕЛЫ: 
     - "ВФД" — это Владимирская фабрика дверей или Владимирская фабрика или Владимирский завод дверей.
-    - "Скрытые двери" — это модели "Invisible". Ссылка: https://dveri-ekat.ru/page/invisible-doors
+    - "Скрытые двери" — это модели "Invisible". Ссылка: https://dveri-ekat.ru/search?q=invisible&lang=ru
     - "Доставка" — раздел: https://dveri-ekat.ru/page/delivery
     - "Оплата" — раздел: https://dveri-ekat.ru/page/payment
     - "Установка" — ссылайся на раздел "Наши работы": https://dveri-ekat.ru/blogs/completework
