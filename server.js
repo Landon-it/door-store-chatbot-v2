@@ -164,126 +164,79 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Bitrix24 Webhook Handler
-// GET request for initial configuration/checks AND OAuth callback
+// GET request for Initial Install AND OAuth processing
 app.get('/api/bitrix/webhook', async (req, res) => {
     const { code } = req.query;
+    const currentDomain = req.get('host');
+    const protocol = req.protocol;
+    // For production behind proxy/Vercel/Render, ensure protocol is https
+    const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
 
-    res.type('html');
+    // This URL must match what you send as redirect_uri
+    const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
+
+    // 1. If we have 'code', it's the OAuth callback -> Exchange for token and Register
+    if (code) {
+        try {
+            console.log(`Received OAuth code: ${code}. Swapping for token...`);
+
+            // NOTE: For 'Box' (self-hosted) bitrix96.ru, the token URL is on the domain itself.
+            const tokenUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/token/?grant_type=authorization_code&client_id=${process.env.BITRIX24_CLIENT_ID}&client_secret=${process.env.BITRIX24_CLIENT_SECRET}&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+            const tokenResponse = await fetch(tokenUrl);
+            const tokenData = await tokenResponse.json();
+
+            if (tokenData.error) {
+                console.error('Token Exchange Error:', tokenData);
+                return res.send(`<h1>OAuth Error</h1><pre>${JSON.stringify(tokenData, null, 2)}</pre>`);
+            }
+
+            console.log('Token acquired. Registering bot...');
+
+            // Register Bot using the new access token
+            const regResult = await bitrixBot.registerBot(redirectUri, {
+                access_token: tokenData.access_token,
+                refresh_token: tokenData.refresh_token, // might be useful later
+                domain: process.env.BITRIX24_DOMAIN
+            });
+
+            if (regResult.error) {
+                console.error('Registration Error:', regResult);
+                return res.send(`<h1>Registration Failed</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+            }
+
+            // Success Page
+            return res.send(`
+                <!DOCTYPE html>
+                <html>
+                <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
+                    <h1>✅ Бот успешно зарегистрирован! (Server-Side)</h1>
+                    <p>Проверьте список "Открытые линии" -> "Чат-боты".</p>
+                    <p>ID Бота: ${regResult.result}</p>
+                </body>
+                </html>
+            `);
+
+        } catch (error) {
+            console.error('Server Logic Error:', error);
+            return res.send(`<h1>Internal Server Error</h1><pre>${error.message}</pre>`);
+        }
+    }
+
+    // 2. If NO 'code', assume it's the first visit (Open Application) -> Redirect to OAuth
+    // This forces the user to authorize/install the app, returning to this specific URL with a code.
+    const oauthUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/authorize/?client_id=${process.env.BITRIX24_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+    console.log('Redirecting to OAuth:', oauthUrl);
+
     res.send(`
         <!DOCTYPE html>
         <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Bitrix24 Bot Installation</title>
-            <style>
-                body { font-family: monospace; padding: 20px; background: #fff; color: #333; }
-                .card { border: 1px solid #ccc; padding: 20px; margin: 20px auto; max-width: 600px; border-radius: 5px; }
-                h1 { margin-top: 0; }
-                .log { background: #f0f0f0; padding: 10px; border-radius: 4px; border: 1px solid #ddd; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
-                .error { color: red; background: #ffe6e6; }
-                .success { color: green; background: #e6ffe6; }
-            </style>
-            <script>
-                // GLOBAL ERROR HANDLER
-                window.onerror = function(msg, url, line, col, error) {
-                    var extra = !col ? '' : '\\ncolumn: ' + col;
-                    extra += !error ? '' : '\\nerror: ' + error;
-                    var logEl = document.getElementById('error-log');
-                    if (logEl) {
-                        logEl.innerHTML += '<div class="log error">❌ JS ERROR: ' + msg + '\\nurl: ' + url + '\\nline: ' + line + extra + '</div>';
-                    }
-                    return false;
-                };
-            </script>
-            <script src="https://api.bitrix24.com/api/v1/"></script>
-        </head>
+        <head><title>Redirecting...</title></head>
         <body>
-            <div class="card">
-                <h3>🛠 v3.0 DIAGNOSTIC MODE</h3>
-                <p>Если вы видите этот текст — HTML загрузился.</p>
-                
-                <div id="status">⏳ Инициализация BX24...</div>
-                
-                <div id="error-log"></div>
-                
-                <button onclick="window.location.reload()" style="padding:10px; margin-top:20px; cursor:pointer;">Обновить страницу</button>
-            </div>
-
+            <p>🔄 Перенаправление на авторизацию Bitrix24...</p>
             <script>
-                // Helper logger
-                function log(msg, type) {
-                    var el = document.getElementById('status');
-                    var color = type === 'error' ? 'red' : (type === 'success' ? 'green' : 'black');
-                    el.innerHTML += '<div style="color:' + color + '; margin-top:5px;">' + msg + '</div>';
-                }
-
-                log('✅ Скрипт страницы запущен.', 'info');
-
-                if (typeof BX24 === 'undefined') {
-                    log('❌ CRITICAL: BX24 is undefined. Скрипт api.bitrix24.com не загрузился или заблокирован.', 'error');
-                } else {
-                    log('✅ BX24 object found.', 'success');
-                    
-                    try {
-                        BX24.init(function() {
-                            log('✅ BX24.init() callback fired!', 'success');
-                            
-                            // Construct webhook URL
-                            var webhookUrl = '${req.protocol}://${req.get('host')}/api/bitrix/webhook';
-                            log('🔗 Webhook URL: ' + webhookUrl, 'info');
-
-                            var botParams = {
-                                'CODE': 'door_store_bot',
-                                'TYPE': 'B',
-                                'EVENT_MESSAGE_ADD': webhookUrl,
-                                'EVENT_WELCOME_MESSAGE': webhookUrl,
-                                'PROPERTIES': {
-                                    'NAME': 'Виртуальный консультант',
-                                    'COLOR': 'GREEN',
-                                    'EMAIL': 'office@dveri-ekat.ru',
-                                    'WORK_POSITION': 'Бот-консультант'
-                                }
-                            };
-
-                            log('🚀 Trying to register bot...', 'info');
-                            
-                            BX24.callMethod('imbot.register', botParams, function(res) {
-                                if (res.error()) {
-                                    // If error is "BOT_CODE_EXISTS", try update
-                                    var err = res.error();
-                                    log('⚠️ Registration result: ' + JSON.stringify(err), 'error');
-                                    
-                                    // Try to list bots to find ID
-                                    BX24.callMethod('imbot.bot.list', {}, function(listRes) {
-                                        if (listRes.error()) {
-                                            log('❌ Failed to list bots: ' + listRes.error(), 'error');
-                                        } else {
-                                            var bots = listRes.data();
-                                            var myBot = Object.values(bots).find(function(b){ return b.CODE === 'door_store_bot'; });
-                                            if (myBot) {
-                                                log('♻️ Bot found (ID=' + myBot.ID + '). Updating...', 'info');
-                                                BX24.callMethod('imbot.update', { 'BOT_ID': myBot.ID, 'FIELDS': botParams }, function(updRes) {
-                                                    if (updRes.error()) {
-                                                        log('❌ Update failed: ' + updRes.error(), 'error');
-                                                    } else {
-                                                        log('✅ SUCCESS! Bot updated.', 'success');
-                                                    }
-                                                });
-                                            } else {
-                                                log('❌ Bot CODE exists but not found in list??', 'error');
-                                            }
-                                        }
-                                    });
-
-                                } else {
-                                    log('✅ SUCCESS! Bot registered with ID: ' + res.data(), 'success');
-                                }
-                            });
-                        });
-                    } catch (e) {
-                        log('❌ EXCEPTION in BX24.init: ' + e.message, 'error');
-                    }
-                }
+                window.location.href = "${oauthUrl}";
             </script>
         </body>
         </html>
