@@ -306,8 +306,8 @@ class DoorStoreChatbot {
             response += `💰 Цены: ${hardware.hinges.priceRange}`;
         } else {
             response += `У нас есть вся необходимая фурнитура:\n\n`;
-            response += `• <strong>Замки</strong> - ${hardware.locks.priceRange}\n`;
-            response += `• <strong>Ручки</strong> - ${hardware.handles.priceRange}\n`;
+            response += `• <strong>Замки</strong> (https://dveri-ekat.ru/collection/zamki) - ${hardware.locks.priceRange}\n`;
+            response += `• <strong>Ручки</strong> (https://dveri-ekat.ru/collection/ruchki) - ${hardware.handles.priceRange}\n`;
             response += `• <strong>Петли</strong> - ${hardware.hinges.priceRange}\n`;
             response += `• <strong>Прочее:</strong> ${hardware.other.items.join(', ')}`;
         }
@@ -323,6 +323,7 @@ class DoorStoreChatbot {
         response += `🛡️ ${info.warranty}\n\n`;
         response += `<strong>Что входит в установку:</strong>\n`;
         response += info.includedServices.map(s => '✓ ' + s).join('\n');
+        response += `\n\nПримеры выполненных работ можно посмотреть здесь: https://dveri-ekat.ru/blogs/completework`;
         response += `\n\nДля точного расчёта и записи на замер - передаю Вас оператору!`;
 
         return response;
