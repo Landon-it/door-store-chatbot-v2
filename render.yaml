@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: door-store-chatbot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PORT
+        value: 3000
