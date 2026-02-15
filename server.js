@@ -246,10 +246,21 @@ app.get('/api/bitrix/webhook', async (req, res) => {
             return res.send(`
                 <!DOCTYPE html>
                 <html>
+                <head>
+                    <script src="//api.bitrix24.com/api/v1/"></script>
+                    <script>
+                        function goToOpenLines() {
+                            BX24.openPath('/contact_center/openlines');
+                        }
+                    </script>
+                </head>
                 <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
                     <h1>✅ Бот успешно настроен! (Server-Side)</h1>
                     <p>ID Бота: ${botId}</p>
                     <p>Теперь он точно должен появиться в "Открытых линиях".</p>
+                    <button onclick="goToOpenLines()" style="padding: 10px 20px; font-size: 16px; margin-top: 20px; cursor: pointer;">
+                        ⚙️ Перейти к настройкам Открытых линий
+                    </button>
                 </body>
                 </html>
             `);
@@ -393,9 +404,20 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             return res.send(`
                 <!DOCTYPE html>
                 <html>
+                <head>
+                    <script src="//api.bitrix24.com/api/v1/"></script>
+                    <script>
+                        function goToOpenLines() {
+                            BX24.openPath('/contact_center/openlines');
+                        }
+                    </script>
+                </head>
                 <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
                     <h1>✅ Бот успешно настроен!</h1>
                     <p>Ищите "Виртуальный консультант" в настройках Открытых линий.</p>
+                    <button onclick="goToOpenLines()" style="padding: 10px 20px; font-size: 16px; margin-top: 20px; cursor: pointer;">
+                        ⚙️ Перейти к настройкам Открытых линий
+                    </button>
                 </body>
                 </html>
             `);
