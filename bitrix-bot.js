@@ -39,6 +39,7 @@ class BitrixBot {
             'CODE': 'door_store_bot',
             'TYPE': 'B',
             'EVENT_HANDLER': webhookUrl,
+            'OPENLINE': 'Y', // Dual-provision for compatibility
             'PROPERTIES': {
                 'NAME': 'Виртуальный консультант',
                 'COLOR': 'GREEN',
@@ -70,7 +71,7 @@ class BitrixBot {
     async updateBot(botId, params, auth) {
         return await this.callMethod('imbot.update', {
             'BOT_ID': botId,
-            'FIELDS': params
+            ...params
         }, auth);
     }
 }

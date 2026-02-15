@@ -202,6 +202,7 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                 'CODE': 'door_store_bot',
                 'TYPE': 'B',
                 'EVENT_HANDLER': redirectUri,
+                'OPENLINE': 'Y',
                 'PROPERTIES': {
                     'NAME': 'Виртуальный консультант',
                     'COLOR': 'GREEN',
@@ -401,6 +402,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 'CODE': 'door_store_bot',
                 'TYPE': 'B',
                 'EVENT_HANDLER': redirectUri,
+                'OPENLINE': 'Y',
                 'PROPERTIES': {
                     'NAME': 'Виртуальный консультант',
                     'COLOR': 'GREEN',
