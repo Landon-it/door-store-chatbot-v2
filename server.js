@@ -54,6 +54,15 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/docs', express.static(path.join(__dirname, 'docs')));
 
+// Global request logger for debugging
+app.use((req, res, next) => {
+    console.log(`>>> [${new Date().toISOString()}] ${req.method} ${req.url}`);
+    if (req.method === 'POST') {
+        console.log('>>> Body keys:', Object.keys(req.body));
+    }
+    next();
+});
+
 // Catalog Search API
 app.get('/api/search', (req, res) => {
     try {
@@ -439,6 +448,19 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 const list = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
                 const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
 
+                let myBotDetails = "Bot record not found on this portal.";
+                if (list.result) {
+                    const myBot = Object.values(list.result).find(b => b.CODE === 'door_store_bot');
+                    if (myBot) {
+                        try {
+                            const detailRes = await bitrixBot.callMethod('imbot.bot.get', { BOT_ID: myBot.ID }, { access_token: AUTH_ID, domain: DOMAIN });
+                            myBotDetails = JSON.stringify(detailRes, null, 2);
+                        } catch (e) {
+                            myBotDetails = `Error fetching details: ${e.message}`;
+                        }
+                    }
+                }
+
                 return res.send(`
                     <!DOCTYPE html>
                     <html>
@@ -450,15 +472,17 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         </div>
 
                         <div style="background: #fff9db; padding: 15px; border-left: 5px solid #fcc419; margin-bottom: 20px;">
-                            <strong>Критически важно:</strong> Для работы с Открытыми линиями в "Правах доступа" (Scope) приложения 
-                            ОБЯЗАТЕЛЬНО должны быть указаны оба права: <code>im</code> (Чат-боты) и <code>imopenlines</code> (Открытые линии).
+                            <strong>Критически важно:</strong> Для работы с Открытыми линиями необходимо право <code>imopenlines</code> в Scope.
                         </div>
 
                         <h3>1. Данные приложения (app.info):</h3>
                         <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; overflow: auto; font-size: 13px;">${JSON.stringify(appInfo, null, 2)}</pre>
                         
-                        <h3>2. Список ботов на портале:</h3>
-                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; max-height: 400px; overflow: auto; font-size: 13px;">${JSON.stringify(list, null, 2)}</pre>
+                        <h3>2. Настройки нашего бота (детально):</h3>
+                        <pre style="background: #e3f2fd; padding: 15px; border-radius: 8px; overflow: auto; font-size: 13px;">${myBotDetails}</pre>
+
+                        <h3>3. Список всех ботов:</h3>
+                        <pre style="background: #f4f4f4; padding: 15px; border-radius: 8px; max-height: 300px; overflow: auto; font-size: 13px;">${JSON.stringify(list, null, 2)}</pre>
                         
                         <a href="javascript:history.back()" style="display: inline-block; margin-top: 20px; color: #0091ea; font-weight: bold; text-decoration: none;">⬅️ Вернуться назад</a>
                     </body>
