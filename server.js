@@ -201,10 +201,7 @@ app.get('/api/bitrix/webhook', async (req, res) => {
             const botParams = {
                 'CODE': 'door_store_bot',
                 'TYPE': 'B',
-                'OPENLINE': 'Y',
-                'EVENT_MESSAGE_ADD': redirectUri, // We reuse redirectUri as webhookUrl here
-                'EVENT_WELCOME_MESSAGE': redirectUri,
-                'EVENT_BOT_DELETE': redirectUri,
+                'EVENT_HANDLER': redirectUri,
                 'PROPERTIES': {
                     'NAME': 'Виртуальный консультант',
                     'COLOR': 'GREEN',
@@ -212,6 +209,7 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                     'PERSONAL_BIRTHDAY': '2024-02-15',
                     'PERSONAL_WWW': 'https://dveri-ekat.ru',
                     'PERSONAL_GENDER': 'M',
+                    'OPENLINE': 'Y',
                 }
             };
 
@@ -402,10 +400,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             const botParams = {
                 'CODE': 'door_store_bot',
                 'TYPE': 'B',
-                'OPENLINE': 'Y',
-                'EVENT_MESSAGE_ADD': redirectUri,
-                'EVENT_WELCOME_MESSAGE': redirectUri,
-                'EVENT_BOT_DELETE': redirectUri,
+                'EVENT_HANDLER': redirectUri,
                 'PROPERTIES': {
                     'NAME': 'Виртуальный консультант',
                     'COLOR': 'GREEN',
@@ -413,6 +408,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     'PERSONAL_BIRTHDAY': '2024-02-15',
                     'PERSONAL_WWW': 'https://dveri-ekat.ru',
                     'PERSONAL_GENDER': 'M',
+                    'OPENLINE': 'Y',
                 }
             };
 

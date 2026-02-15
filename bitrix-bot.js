@@ -38,10 +38,7 @@ class BitrixBot {
         return await this.callMethod('imbot.register', {
             'CODE': 'door_store_bot',
             'TYPE': 'B',
-            'OPENLINE': 'Y',
-            'EVENT_MESSAGE_ADD': webhookUrl,
-            'EVENT_WELCOME_MESSAGE': webhookUrl,
-            'EVENT_BOT_DELETE': webhookUrl,
+            'EVENT_HANDLER': webhookUrl,
             'PROPERTIES': {
                 'NAME': 'Виртуальный консультант',
                 'COLOR': 'GREEN',
@@ -50,6 +47,7 @@ class BitrixBot {
                 'PERSONAL_WWW': 'https://dveri-ekat.ru',
                 'PERSONAL_GENDER': 'M',
                 'PERSONAL_PHOTO': '',
+                'OPENLINE': 'Y',
             }
         }, auth);
     }
