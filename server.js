@@ -164,15 +164,56 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Bitrix24 Webhook Handler
-// GET request for initial configuration/checks
-app.get('/api/bitrix/webhook', (req, res) => {
+// Bitrix24 Webhook Handler
+// GET request for initial configuration/checks AND OAuth callback
+app.get('/api/bitrix/webhook', async (req, res) => {
+    const { code } = req.query;
+
+    if (code) {
+        // Exchange code for access token
+        try {
+            const tokenUrl = `https://oauth.bitrix.info/oauth/token/?grant_type=authorization_code&client_id=${process.env.BITRIX24_CLIENT_ID}&client_secret=${process.env.BITRIX24_CLIENT_SECRET}&code=${code}`;
+            const tokenResponse = await fetch(tokenUrl);
+            const tokenData = await tokenResponse.json();
+
+            if (tokenData.error) {
+                return res.send(`<h1>Error: ${tokenData.error}</h1><p>${tokenData.error_description}</p>`);
+            }
+
+            // Register Bot
+            const webhookUrl = `${req.protocol}://${req.get('host')}/api/bitrix/webhook`;
+            console.log('Registering bot with URL:', webhookUrl);
+
+            // Use the access token from OAuth to register
+            const regResult = await bitrixBot.registerBot(webhookUrl, { access_token: tokenData.access_token });
+
+            if (regResult.error) {
+                return res.send(`<h1>Registration Failed</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+            }
+
+            return res.send(`
+                <html>
+                    <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
+                        <h1>✅ Бот успешно зарегистрирован!</h1>
+                        <p>Теперь он должен появиться в списке "Открытые линии" -> "Чат-боты".</p>
+                        <p>Можете закрыть это окно.</p>
+                    </body>
+                </html>
+            `);
+
+        } catch (error) {
+            console.error('Registration Error:', error);
+            return res.send(`<h1>Server Error</h1><pre>${error.message}</pre>`);
+        }
+    }
+
     res.send(`
         <html>
             <head><title>Bitrix24 Bot Server</title></head>
             <body style="font-family: sans-serif; text-align: center; padding: 50px;">
                 <h1>✅ Bot Server is Running!</h1>
                 <p>Status: <strong>Active</strong></p>
-                <p>This endpoint receives webhooks from Bitrix24.</p>
+                <p>Waiting for webhook events...</p>
             </body>
         </html>
     `);
