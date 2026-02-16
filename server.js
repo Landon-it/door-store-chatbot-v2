@@ -455,6 +455,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     .btn-secondary { background: #627d98; }
                     .btn-danger { background: #cc3300; }
                     .info { margin-top: 25px; padding: 15px; background: #eef2f7; border-radius: 8px; font-size: 13px; color: #334e68; }
+                    .warning { background: #fff5f5; border: 1px solid #ffc9c9; color: #c92a2a; padding: 15px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; }
                     .section { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
                     label { font-weight: bold; display: block; margin-bottom: 10px; color: #102a43; }
                 </style>
@@ -462,10 +463,19 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             <body>
                 <div class="card">
                     <h1>🤖 Управление ботом</h1>
+                    
+                    ${isNarrowed ? `
+                        <div class="warning">
+                            <strong>⚠️ Внимание: Проблема с правами (Scope Narrowing)</strong><br>
+                            Битрикс выдал права только <code>app</code>. Это часто случается в "Коробке". 
+                            Бот может не видеть сообщения, пока вы не нажмете "Обновить права" ниже и не подтвердите их.
+                        </div>
+                    ` : ''}
+
                     <p>Используйте эти инструменты для настройки и диагностики "Виртуального консультанта".</p>
                     
                     <div class="section">
-                        <label>1. Основные действия:</label>
+                        <label>1. Регистрация:</label>
                         <form method="POST">
                             ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
                             <input type="hidden" name="action" value="install">
@@ -480,21 +490,27 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     </div>
 
                     <div class="section">
-                        <label>2. Соединение (OAuth):</label>
+                        <label>2. Соединение и права:</label>
                         <a href="${oauthUrl}" target="_top" class="btn btn-secondary">🔑 Принудительно обновить права (OAuth)</a>
                     </div>
 
                     <div class="section">
-                        <label>3. Инструменты отладки:</label>
+                        <label>3. Проверка связи:</label>
+                        <form method="POST">
+                            ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
+                            <input type="hidden" name="action" value="test_message">
+                            <button type="submit" class="btn btn-secondary">💬 Отправить тестовое сообщение от бота (Мне)</button>
+                        </form>
+                        
                         <form method="POST">
                             ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
                             <input type="hidden" name="action" value="diagnostics">
-                            <button type="submit" class="btn btn-secondary">🔍 Посмотреть список ботов и права доступа</button>
+                            <button type="submit" class="btn btn-secondary">🔍 Диагностика всех ботов и URIs</button>
                         </form>
                     </div>
 
                     <div class="info">
-                        <strong>Подсказка:</strong> В коробочных версиях Битрикс24 переход по кнопке "Обновить права" часто является единственным способом заставить Битрикс "увидеть" новые галочки в Scope.
+                        <strong>Подсказка:</strong> В коробочных версиях Битрикс24 переход по кнопке "Обновить права" часто является единственным способом заставить Битрикс "увидеть" изменения в разрешениях.
                     </div>
                 </div>
             </body>
