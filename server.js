@@ -414,12 +414,17 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         let isNarrowed = false;
         try {
             const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
-            const rawScope = appInfo.result && appInfo.result.SCOPE ? appInfo.result.SCOPE : '';
+            const appResult = appInfo.result || {};
+            const rawScope = appResult.SCOPE ? appResult.SCOPE : '';
             hasScope = (rawScope.includes('imbot') || rawScope.includes('imopenlines'));
             isNarrowed = (rawScope === 'app' || rawScope === '' || !hasScope);
+            const isInstalled = appResult.INSTALLED || false;
 
             if (isNarrowed) {
-                console.log(`[WARNING] Scope is restricted or empty ("${rawScope}"). Allowing management UI access.`);
+                console.log(`[WARNING] Scope is restricted or empty ("${rawScope}"). Providing management UI access.`);
+            }
+            if (!isInstalled) {
+                console.log('[INFO] App not installed. Will attempt to call BX24.install() in the UI.');
             }
         } catch (err) {
             console.error('Scope Check Error:', err);
@@ -448,21 +453,37 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 </style>
             </head>
             <body>
+                <script src="//api.bitrix24.com/api/v1/"></script>
                 <div class="card">
                     <h1>🤖 Управление ботом</h1>
                     
                     ${isNarrowed ? `
-                        <div class="warning">
+                        <div class="warning" style="text-align: left;">
                             <strong>⚠️ Внимание: Проблема с правами (Scope Narrowing)</strong><br>
                             Битрикс выдал права только <code>app</code>. Это часто случается в "Коробке". 
                             Бот может не видеть сообщения, пока вы не нажмете "Обновить права" ниже и не подтвердите их.
                         </div>
                     ` : ''}
 
+                    ${!appResult.INSTALLED ? `
+                        <div class="warning" style="background: #e7f3ff; border-color: #74c0fc; color: #1971c2; text-align: left;">
+                            <strong>ℹ️ Инфо: Приложение не установлено полностью.</strong><br>
+                            Сейчас мы попробуем завершить установку автоматически...
+                            <script>
+                                BX24.init(function() {
+                                    console.log('Finalizing installation via BX24.install()...');
+                                    BX24.install(function() {
+                                        console.log('Installation finalized!');
+                                    });
+                                });
+                            </script>
+                        </div>
+                    ` : ''}
+
                     <p>Используйте эти инструменты для настройки и диагностики "Виртуального консультанта".</p>
                     
                     <div class="section">
-                        <label>1. Регистрация:</label>
+                        <label>1. Регистрация и активация:</label>
                         <form method="POST">
                             ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
                             <input type="hidden" name="action" value="install">
@@ -529,10 +550,17 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             console.log(`Action executing: ${action}. Calculated redirectUri: ${redirectUri}`);
 
             if (action === 'test_message') {
-                const result = await bitrixBot.sendMessage('4867', req.body.USER_ID || '110', 'Привет! Это тестовое сообщение от сервера. Если ты его видишь, значит исходящая связь работает.', { access_token: AUTH_ID, domain: portal });
+                let testUserId = req.body.USER_ID || '1';
+                if (req.body.PLACEMENT_OPTIONS) {
+                    try {
+                        const opts = JSON.parse(req.body.PLACEMENT_OPTIONS);
+                        if (opts.USER_ID) testUserId = opts.USER_ID;
+                    } catch (e) { }
+                }
+                const result = await bitrixBot.sendMessage('4867', testUserId, 'Привет! Это тестовое сообщение от сервера. Если ты его видишь, значит исходящая связь работает.', { access_token: AUTH_ID, domain: portal });
                 return res.send(`
                     <div style="font-family: sans-serif; padding: 30px;">
-                        <h3>Результат теста imbot.message.add:</h3>
+                        <h3>Результат теста imbot.message.add (User ${testUserId}):</h3>
                         <pre style="background: #f4f4f4; padding: 10px;">${JSON.stringify(result, null, 2)}</pre>
                         <a href="javascript:history.back()">Назад</a>
                     </div>
@@ -553,11 +581,15 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         <h3>Список зарегистрированных ботов:</h3>
                         <div style="display: grid; gap: 10px;">
                             ${botList.result ? Object.values(botList.result).map(b => `
-                                <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
-                                    <b>${b.PROPERTIES ? b.PROPERTIES.NAME : 'Без имени'}</b> (ID: ${b.ID}, CODE: ${b.CODE})<br>
-                                    URL обработчика: <code>${b.EVENT_HANDLER || (b.PROPERTIES && b.PROPERTIES.EVENT_HANDLER) || 'не указан'}</code><br>
-                                    Версия портала: ${b.BOT_TYPE}<br>
-                                    Права: ${b.OPENLINE === 'Y' ? '✅ Открытые линии' : '❌ Нет линий'}
+                                <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: white;">
+                                    <b>${b.PROPERTIES ? b.PROPERTIES.NAME : (b.NAME || 'Без имени')}</b> (ID: ${b.ID}, CODE: ${b.CODE})<br>
+                                    URL обработчика: <code style="color: ${b.EVENT_HANDLER ? 'green' : 'red'}">${b.EVENT_HANDLER || 'не указан'}</code><br>
+                                    Версия (TYPE): ${b.TYPE || 'не определен'}<br>
+                                    Права: ${b.OPENLINE === 'Y' || (b.PROPERTIES && b.PROPERTIES.OPENLINE === 'Y') ? '✅ Открытые линии' : '❌ Нет линий'}<br>
+                                    <details style="margin-top: 5px; font-size: 11px;">
+                                        <summary>Технические данные (JSON)</summary>
+                                        <pre style="background: #f9f9f9; padding: 5px;">${JSON.stringify(b, null, 2)}</pre>
+                                    </details>
                                 </div>
                             `).join('') : '<p>Боты не найдены</p>'}
                         </div>
@@ -585,8 +617,14 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: AUTH_ID, domain: portal });
             console.log('Registration result:', JSON.stringify(regResult, null, 2));
 
-            if (regResult.error) {
-                // If it exists and we are NOT in force_reinstall, try to update
+            if (!regResult.error) {
+                botId = regResult.result;
+                // FORCE UPDATE to ensure EVENT_HANDLER is saved
+                console.log(`Forcing update for bot ${botId} to ensure handler URL is saved...`);
+                const forceUpd = await bitrixBot.updateBot(botId, botParams, { access_token: AUTH_ID, domain: portal });
+                console.log('Force update result:', JSON.stringify(forceUpd, null, 2));
+            } else {
+                // If it exists but register failed (e.g. some error other than "already exists"), try list and update
                 const listResult = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
                 if (listResult.result) {
                     const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
@@ -600,8 +638,6 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         return res.send(`<h1>Error</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
                     }
                 }
-            } else {
-                botId = regResult.result;
             }
 
             return res.send(`
