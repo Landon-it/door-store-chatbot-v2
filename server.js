@@ -460,11 +460,21 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     <h1>🤖 Управление ботом</h1>
                     
                     ${isNarrowed ? `
-                        <div class="warning-sc" style="text-align: left;">
-                            <strong>⚠️ Внимание: Ограниченные права (Scope: ${bitrixAppInfoResult.SCOPE || 'empty'})</strong><br>
-                            Битрикс вернул пустой или ограниченный список прав. Это "болезнь" коробочных версий.<br>
-                            <b>Что делать:</b> В Битриксе зайдите в настройки этого приложения, еще раз выберите права (Чат, Линии, CRM) и нажмите <b>СОХРАНИТЬ</b>. 
-                            Затем нажмите кнопку "Обновить права" ниже.
+                        <div class="warning-sc" style="text-align: left; background: #fff9db; border: 1px solid #fab005; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3 style="margin-top: 0; color: #bf8100;">⚠️ Внимание: Ограниченные права (Scope: ${bitrixAppInfoResult.SCOPE || 'empty'})</h3>
+                            <p style="font-size: 14px; margin-bottom: 10px;">
+                                Битрикс передал пустой список прав. В "Коробке" это лечится так:
+                            </p>
+                            <ol style="font-size: 14px; margin-bottom: 0;">
+                                <li>В Битриксе зайдите в <b>Локальные приложения</b> -> Список приложений.</li>
+                                <li>Найдите V2 и нажмите <b>Редактировать</b>.</li>
+                                <li>Проверьте, что выбраны <b>Чат и боты</b>, <b>Открытые линии</b>, <b>CRM</b> и <b>REST API</b>.</li>
+                                <li><b>Нажмите СОХРАНИТЬ</b>.</li>
+                                <li>Если в списке у приложения появилась кнопка <b>"Установить"</b> — обязательно нажмите её.</li>
+                            </ol>
+                            <p style="font-size: 13px; margin-top: 10px; color: #666;">
+                                После этого обновите страницу приложения.
+                            </p>
                         </div>
                     ` : ''}
 
@@ -570,6 +580,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 // Dynamic Discovery instead of hardcoded ID
                 let targetBotId = null;
                 const bots = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
+                console.log('Bot list for test_message:', JSON.stringify(bots.result, null, 2));
                 if (bots.result) {
                     const mine = Object.values(bots.result).find(b => b.CODE === 'door_store_bot');
                     if (mine) targetBotId = mine.ID;
@@ -700,11 +711,13 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             }
 
             if (botId) {
-                // FORCE UPDATE to ensure EVENT_HANDLER is saved
+                // FORCE UPDATE with correct FIELDS object
                 console.log(`Forcing update for bot ${botId} to ensure handler URL is saved...`);
                 const forceUpd = await bitrixBot.callMethod('imbot.update', {
                     'BOT_ID': botId,
-                    'EVENT_HANDLER': redirectUri
+                    'FIELDS': {
+                        'EVENT_HANDLER': redirectUri
+                    }
                 }, { access_token: AUTH_ID, domain: portal });
                 console.log('Force update result:', JSON.stringify(forceUpd, null, 2));
 
