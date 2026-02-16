@@ -415,28 +415,15 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         try {
             const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
             const rawScope = appInfo.result && appInfo.result.SCOPE ? appInfo.result.SCOPE : '';
-            hasScope = rawScope.includes('imbot') || rawScope.includes('imopenlines');
-            isNarrowed = rawScope === 'app';
+            hasScope = (rawScope.includes('imbot') || rawScope.includes('imopenlines'));
+            isNarrowed = (rawScope === 'app' || rawScope === '' || !hasScope);
 
-            if (!hasScope && !isNarrowed) {
-                console.log('CRITICAL: Scopes missing in current token. Redirecting top window to OAuth...');
-                return res.send(`
-                    <!DOCTYPE html>
-                    <html>
-                    <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-                        <div style="background: #fff5f5; border: 1px solid #ffc9c9; padding: 30px; border-radius: 12px; color: #c92a2a; display: inline-block;">
-                            <h2>🔓 Требуется авторизация</h2>
-                            <p>Для работы бота необходимо подтвердить доступ в настройках приложения.</p>
-                            <a href="${oauthUrl}" target="_top" style="background: #e03131; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 15px;">
-                                ✅ РАЗРЕШИТЬ ДОСТУП
-                            </a>
-                        </div>
-                    </body>
-                    </html>
-                `);
+            if (isNarrowed) {
+                console.log(`[WARNING] Scope is restricted or empty ("${rawScope}"). Allowing management UI access.`);
             }
         } catch (err) {
             console.error('Scope Check Error:', err);
+            isNarrowed = true; // Assume suspicious if check fails
         }
 
         console.log('Showing advanced Management UI.');
