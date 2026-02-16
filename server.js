@@ -412,9 +412,10 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         console.log('App loaded via POST. Verifying status...');
         let hasScope = false;
         let isNarrowed = false;
+        let appResult = {};
         try {
             const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
-            const appResult = appInfo.result || {};
+            appResult = appInfo.result || {};
             const rawScope = appResult.SCOPE ? appResult.SCOPE : '';
             hasScope = (rawScope.includes('imbot') || rawScope.includes('imopenlines'));
             isNarrowed = (rawScope === 'app' || rawScope === '' || !hasScope);
