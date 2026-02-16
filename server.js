@@ -456,6 +456,68 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             </head>
             <body>
                 <script src="//api.bitrix24.com/api/v1/"></script>
+                <script>
+                    async function runJsFix() {
+                        if (typeof BX24 === 'undefined') {
+                            alert('Ошибка: API Битрикс24 не найдено. Попробуйте обновить страницу.');
+                            return;
+                        }
+                        const btn = document.getElementById('js-fix-btn');
+                        btn.disabled = true;
+                        btn.innerText = '⏳ Выполняю очистку...';
+                        
+                        const HANDLER_URL = window.location.origin + '/api/bitrix/webhook';
+                        const BOT_CODE = 'door_store_bot';
+
+                        console.log('JS FIX START');
+                        
+                        // 1. Unbind old events
+                        const events = ['ONIMBOTMESSAGEADD', 'ONIMBOTJOINCHAT', 'ONIMBOTMESSAGEUPDATE', 'ONIMBOTMESSAGEDELETE'];
+                        for (const ev of events) {
+                             await new Promise(r => BX24.callMethod('event.unbind', { EVENT: ev, HANDLER: HANDLER_URL }, r));
+                        }
+                        
+                        // 2. Clear old bots
+                        BX24.callMethod('imbot.bot.list', {}, async (res) => {
+                            const bots = res.data();
+                            if (bots) {
+                                for (const id in bots) {
+                                    if (bots[id].CODE === BOT_CODE) {
+                                        await new Promise(r => BX24.callMethod('imbot.unregister', { 'BOT_ID': id }, r));
+                                    }
+                                }
+                            }
+                            
+                            // 3. Register New
+                            BX24.callMethod('imbot.register', {
+                                'CODE': BOT_CODE,
+                                'TYPE': 'H',
+                                'EVENT_HANDLER': HANDLER_URL,
+                                'OPENLINE': 'Y',
+                                'PROPERTIES': {
+                                    'NAME': 'Door Store | Консультант V2',
+                                    'COLOR': 'GREEN',
+                                    'EMAIL': 'bot@dveri-ekat.ru',
+                                    'OPENLINE': 'Y'
+                                }
+                            }, (reg) => {
+                                if (reg.error()) {
+                                    alert('Ошибка регистрации: ' + JSON.stringify(reg.error()));
+                                    btn.disabled = false;
+                                    btn.innerText = '⚠️ Повторить JS-Fix';
+                                    return;
+                                }
+                                const newId = reg.data();
+                                // 4. Bind Events
+                                BX24.callMethod('event.bind', { 'EVENT': 'ONIMBOTMESSAGEADD', 'HANDLER': HANDLER_URL });
+                                BX24.callMethod('event.bind', { 'EVENT': 'ONIMBOTJOINCHAT', 'HANDLER': HANDLER_URL });
+                                
+                                alert('УСПЕХ! Бот (' + newId + ') перерегистрирован. Название в чатах: Door Store | Консультант V2');
+                                location.reload();
+                            });
+                        });
+                    }
+                </script>
                 <div class="card">
                     <h1>🤖 Управление ботом</h1>
                     
@@ -506,8 +568,10 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         <form method="POST">
                             ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
                             <input type="hidden" name="action" value="force_reinstall">
-                            <button type="submit" class="btn btn-secondary">♻️ Полная переустановка (Сброс + Регистрация)</button>
+                            <button type="submit" class="btn btn-secondary">♻️ Полная переустановка (Серверная)</button>
                         </form>
+
+                        <button id="js-fix-btn" onclick="runJsFix()" class="btn" style="background: #f59f00; margin-top: 10px;">🛠 Полная очистка и перепривязка (JS-Auto Fix)</button>
                     </div>
 
                     <div class="section">
