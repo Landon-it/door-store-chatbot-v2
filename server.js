@@ -357,10 +357,51 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         return;
     }
 
+    const currentDomain = req.get('x-forwarded-host') || req.get('host');
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
+    const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
+    const scopes = 'im,imbot,imopenlines,rest,placement,crm';
+    const oauthUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/authorize/?client_id=${process.env.BITRIX24_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}`;
+
     // Case B: Application Load (POST from Bitrix Interface)
     if (AUTH_ID && !req.body.action) {
-        console.log('App loaded via POST. Showing advanced Management UI.');
+        console.log('App loaded via POST. Verifying scopes...');
+        try {
+            const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
+            const hasScope = appInfo.result && appInfo.result.SCOPE && appInfo.result.SCOPE.includes('imopenlines');
+            
+            if (!hasScope) {
+                console.log('CRITICAL: Scopes missing in current token. Redirecting top window to OAuth...');
+                return res.send(`
+                    <!DOCTYPE html>
+                    <html>
+                    <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                        <div style="background: #fff5f5; border: 1px solid #ffc9c9; padding: 30px; border-radius: 12px; color: #c92a2a; display: inline-block;">
+                            <h2>🔓 Требуется подтверждение прав</h2>
+                            <p>Для работы бота необходимо подтвердить доступ к чатам и линиям.</p>
+                            <p>Нажмите кнопку ниже для авторизации.</p>
+                            <a href="${oauthUrl}" target="_top" style="background: #e03131; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 15px;">
+                                ✅ РАЗРЕШИТЬ ДОСТУП
+                            </a>
+                            <p style="font-size: 12px; margin-top: 20px; color: #868e96;">Это обновит ваш токен доступа в Bitrix24 Box.</p>
+                        </div>
+                        <script>
+                            // Auto-redirect top window if possible
+                            setTimeout(() => {
+                                // Bitrix IFrames usually allow top-level navigation if the user is in the portal
+                                // window.top.location.href = "${oauthUrl}";
+                            }, 3000);
+                        </script>
+                    </body>
+                    </html>
+                `);
+            }
+        } catch (err) {
+            console.error('Scope Check Error:', err);
+        }
 
+        console.log('Showing advanced Management UI.');
         return res.send(`
             <!DOCTYPE html>
             <html>
@@ -401,7 +442,12 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     </div>
 
                     <div class="section">
-                        <label>2. Инструменты отладки:</label>
+                        <label>2. Соединение (OAuth):</label>
+                        <a href="${oauthUrl}" target="_top" class="btn btn-secondary">🔑 Принудительно обновить права (OAuth)</a>
+                    </div>
+
+                    <div class="section">
+                        <label>3. Инструменты отладки:</label>
                         <form method="POST">
                             ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
                             <input type="hidden" name="action" value="diagnostics">
@@ -410,7 +456,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     </div>
 
                     <div class="info">
-                        <strong>Подсказка:</strong> В коробочных версиях Битрикс24 иногда требуется "Полная переустановка", чтобы изменения в настройках чат-ботов вступили в силу.
+                        <strong>Подсказка:</strong> В коробочных версиях Битрикс24 переход по кнопке "Обновить права" часто является единственным способом заставить Битрикс "увидеть" новые галочки в Scope.
                     </div>
                 </div>
             </body>
@@ -420,10 +466,6 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
     if (AUTH_ID && req.body.action) {
         const action = req.body.action;
-        const currentDomain = req.get('x-forwarded-host') || req.get('host');
-        const protocol = req.get('x-forwarded-proto') || req.protocol;
-        const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
-        const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
 
         const botParams = {
             'CODE': 'door_store_bot',
