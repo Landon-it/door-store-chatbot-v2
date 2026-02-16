@@ -8,18 +8,28 @@ class BitrixBot {
     }
 
     async callMethod(method, params, auth) {
-        // Use domain from auth if available (for multi-tenant or fallback), otherwise use default
-        const targetDomain = (auth && auth.domain) ? auth.domain : this.domain;
+        let url;
+        let body = { ...params };
 
-        if (!targetDomain) {
-            throw new Error(`BitrixBot: Domain is undefined. (method=${method}, auth.domain=${auth ? auth.domain : 'undefined'}, this.domain=${this.domain})`);
+        // Support for static webhooks (no OAuth needed)
+        // If auth contains a full webhook URL (starts with http)
+        if (auth && auth.webhook_url) {
+            // Remove trailing slash if any
+            const baseUrl = auth.webhook_url.replace(/\/$/, '');
+            url = `${baseUrl}/${method}.json`;
+            // For webhooks, we don't need 'auth' token in body usually, 
+            // as it's already in the URL path (rest/ID/TOKEN/method)
+        } else {
+            // standard OAuth flow
+            const targetDomain = (auth && auth.domain) ? auth.domain : this.domain;
+            if (!targetDomain) {
+                throw new Error(`BitrixBot: Domain is undefined. (method=${method})`);
+            }
+            url = `https://${targetDomain}/rest/${method}.json`;
+            if (auth && auth.access_token) {
+                body.auth = auth.access_token;
+            }
         }
-
-        const url = `https://${targetDomain}/rest/${method}.json`;
-        const body = {
-            ...params,
-            auth: auth.access_token
-        };
 
         const response = await fetch(url, {
             method: 'POST',

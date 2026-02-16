@@ -343,7 +343,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
             try {
                 // Determine portal domain from auth or data
-                const portal = auth.domain || data.DOMAIN || process.env.BITRIX24_DOMAIN;
+                const portal = (auth && auth.domain) ? auth.domain : (data.DOMAIN || process.env.BITRIX24_DOMAIN);
 
                 // Search catalog for context
                 console.log('>>> [DEBUG] Searching catalog...');
@@ -366,8 +366,9 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 // Send back to Bitrix24
                 console.log('>>> [DEBUG] Sending message back to Bitrix...');
                 const response = await bitrixBot.sendMessage(botId, chatId, aiResponse, {
-                    access_token: auth.access_token,
-                    domain: portal
+                    access_token: auth ? auth.access_token : null,
+                    domain: portal,
+                    webhook_url: process.env.BITRIX24_WEBHOOK_URL
                 });
                 console.log('>>> [DEBUG] Bitrix response:', JSON.stringify(response));
             } catch (error) {
