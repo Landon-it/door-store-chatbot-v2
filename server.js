@@ -96,7 +96,7 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 ${productsContext}
 
 Контактная информация:
-- Телефон: ${config.operator.phone}
+- Телефон: [${config.operator.phone}](tel:${config.operator.phone.replace(/[^\d+]/g, '')})
 - Email: [${config.operator.email}](mailto:${config.operator.email})
 - Часы работы: ${config.operator.workHours}
 - Сайт: https://dveri-ekat.ru/
@@ -175,9 +175,7 @@ if (botToken) {
             console.log(`AI Response for Telegram: "${aiResponse.substring(0, 100)}..."`);
 
             // Send response back to Telegram
-            // We remove parse_mode: 'Markdown' because it's very fragile with random AI output.
-            // If we need formatting, we should sanitize it first.
-            await ctx.reply(aiResponse);
+            await ctx.reply(aiResponse, { parse_mode: 'Markdown' });
         } catch (error) {
             console.error('>>> [TELEGRAM BOT ERROR]:', error.message);
             if (error.response) {
