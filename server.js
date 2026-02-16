@@ -196,7 +196,6 @@ app.get('/api/bitrix/webhook', async (req, res) => {
             const tokenResponse = await fetch(tokenUrl);
             const tokenData = await tokenResponse.json();
             console.log('Token Data received:', tokenData);
-            console.log('Scopes in redirect vs token:', req.query.scope, 'vs', tokenData.scope);
 
             if (tokenData.error) {
                 console.error('Token Exchange Error:', tokenData);
@@ -209,12 +208,6 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                 `);
             }
 
-            if (tokenData.scope === 'app' || !tokenData.scope || !tokenData.scope.includes('imbot')) {
-                console.warn('WARNING: Token has empty or restricted scope:', tokenData.scope);
-            }
-
-            // Register OR Update Bot
-            let botId = null;
             const botParams = {
                 'CODE': 'door_store_bot',
                 'TYPE': 'H',
@@ -231,28 +224,44 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                 }
             };
 
-            const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: tokenData.access_token, domain: process.env.BITRIX24_DOMAIN });
+            console.log('Attempting bot registration with token...');
+            const portal = tokenData.domain || process.env.BITRIX24_DOMAIN;
+            const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: tokenData.access_token, domain: portal });
+            console.log('Registration Raw Result:', JSON.stringify(regResult));
+
+            let botId = null;
 
             if (regResult.error) {
-                console.warn('Registration failed (probably exists). Error:', regResult.error);
-                // Try to find and update
-                const listResult = await bitrixBot.getBotList({ access_token: tokenData.access_token, domain: process.env.BITRIX24_DOMAIN });
-                if (listResult.result) {
-                    const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
-                    if (existingBot) {
-                        console.log(`Found existing bot ID=${existingBot.ID}. Updating...`);
-                        const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: tokenData.access_token, domain: process.env.BITRIX24_DOMAIN });
-                        if (updResult.error) {
-                            console.error('Update Error:', updResult);
-                            return res.send(`<h1>Update Failed</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
+                if (regResult.error === 'BOT_ALREADY_REGISTERED' || regResult.error === 'CODE_ALREADY_EXIST') {
+                    console.log('Bot already exists. Finding and updating...');
+                    const listResult = await bitrixBot.getBotList({ access_token: tokenData.access_token, domain: portal });
+                    if (listResult.result) {
+                        const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
+                        if (existingBot) {
+                            const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: tokenData.access_token, domain: portal });
+                            botId = existingBot.ID;
+                        } else {
+                            return res.send(`<h1>Error</h1><p>Bot exists but not found in list.</p>`);
                         }
-                        botId = existingBot.ID;
-                        console.log('Bot updated successfully.');
                     } else {
-                        return res.send(`<h1>Registration Failed</h1><p>Bot CODE exists but not found in list?</p><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+                        return res.send(`<h1>Error</h1><p>Could not fetch bot list.</p><pre>${JSON.stringify(listResult)}</pre>`);
                     }
                 } else {
-                    return res.send(`<h1>List Failed</h1><pre>${JSON.stringify(listResult, null, 2)}</pre>`);
+                    console.error('Registration failed:', regResult.error);
+                    return res.send(`
+                        <div style="font-family: sans-serif; padding: 40px; border: 2px solid #e03131; background: #fff5f5; border-radius: 12px; color: #c92a2a; max-width: 800px; margin: 20px auto;">
+                            <h2 style="margin-top: 0;">❌ Ошибка регистрации в Битрикс24</h2>
+                            <p><b>Код ошибки:</b> <code>${regResult.error}</code></p>
+                            <p><b>Описание:</b> ${regResult.error_description || 'Нет описания'}</p>
+                            <hr style="border: 0; border-top: 1px solid #ffc9c9; margin: 20px 0;">
+                            <p><b>Что это значит:</b></p>
+                            <ul style="line-height: 1.6;">
+                                ${regResult.error === 'INSUFFICIENT_SCOPE' ? '<li><b>Права не получены:</b> Битрикс проигнорировал запрос на права. Проверьте настройки приложения.</li>' : ''}
+                                ${regResult.error === 'METHOD_NOT_FOUND' ? '<li><b>Модуль imbot не найден:</b> На портале не установлен модуль Чat-боты.</li>' : ''}
+                            </ul>
+                            <pre style="background: #eee; padding: 10px; font-size: 11px;">${JSON.stringify(regResult, null, 2)}</pre>
+                        </div>
+                    `);
                 }
             } else {
                 botId = regResult.result;
@@ -264,26 +273,12 @@ app.get('/api/bitrix/webhook', async (req, res) => {
                 <html>
                 <head>
                     <script src="//api.bitrix24.com/api/v1/"></script>
-                    <script>
-                        function goToOpenLines() {
-                            BX24.openPath('/contact_center/openlines');
-                        }
-                    </script>
+                    <script> function goToOpenLines() { BX24.openPath('/contact_center/openlines'); } </script>
                 </head>
                 <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #d4edda; color: #155724;">
-                    <h1>✅ Бот успешно настроен! (Server-Side)</h1>
+                    <h1>✅ Бот успешно настроен!</h1>
                     <p>ID Бота: ${botId}</p>
-                    <p>Теперь он точно должен появиться в "Открытых линиях".</p>
-                    <button onclick="goToOpenLines()" style="padding: 10px 20px; font-size: 16px; margin-top: 20px; cursor: pointer;">
-                        ⚙️ Перейти к настройкам Открытых линий
-                    </button>
-                    <p style="margin-top: 30px; font-size: 14px; color: #555;">
-                        <strong>Если кнопка не работает:</strong><br>
-                        1. В левом меню выберите "Контакт-центр".<br>
-                        2. Нажмите "Открытые линии".<br>
-                        3. Зайдите в настройки линии -> вкладка "Чат-боты".<br>
-                        4. Выберите "Виртуальный консультант" и сохраните.
-                    </p>
+                    <button onclick="goToOpenLines()" style="padding: 10px 20px; font-size: 16px; margin-top: 20px; cursor: pointer;">⚙️ Открыть настройки Линий</button>
                 </body>
                 </html>
             `);
@@ -294,22 +289,20 @@ app.get('/api/bitrix/webhook', async (req, res) => {
         }
     }
 
-    // 2. If NO 'code', assume it's the first visit (Open Application) -> Redirect to OAuth
-    // Explicitly requesting scopes is CRITICAL for Bitrix24 Box to actually grant them.
-    const scopes = 'im,imbot,imopenlines,rest,placement,crm';
-    const oauthUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/authorize/?client_id=${process.env.BITRIX24_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}`;
+    // 2. If NO 'code' -> Redirect to OAuth
+    const portalDomain = req.query.DOMAIN || process.env.BITRIX24_DOMAIN;
+    const clientId = process.env.BITRIX24_CLIENT_ID;
+    const scopes = 'im imbot imopenlines rest placement crm';
+    const oauthUrl = `https://${portalDomain}/oauth/authorize/?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
 
     console.log('Redirecting to OAuth:', oauthUrl);
-
-    res.send(`
+    return res.send(`
         <!DOCTYPE html>
         <html>
         <head><title>Redirecting...</title></head>
         <body>
             <p>🔄 Перенаправление на авторизацию Bitrix24...</p>
-            <script>
-                window.location.href = "${oauthUrl}";
-            </script>
+            <script> window.location.href = "${oauthUrl}"; </script>
         </body>
         </html>
     `);
