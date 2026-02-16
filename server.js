@@ -196,13 +196,22 @@ app.get('/api/bitrix/webhook', async (req, res) => {
             const tokenResponse = await fetch(tokenUrl);
             const tokenData = await tokenResponse.json();
             console.log('Token Data received:', tokenData);
+            console.log('Scopes in redirect vs token:', req.query.scope, 'vs', tokenData.scope);
 
             if (tokenData.error) {
                 console.error('Token Exchange Error:', tokenData);
-                return res.send(`<h1>OAuth Error</h1><pre>${JSON.stringify(tokenData, null, 2)}</pre>`);
+                return res.send(`
+                    <div style="font-family: sans-serif; padding: 30px; border: 1px solid #ffc9c9; background: #fff5f5; color: #c92a2a;">
+                        <h2>❌ Ошибка обмена токена</h2>
+                        <pre>${JSON.stringify(tokenData, null, 2)}</pre>
+                        <p>Пожалуйста, проверьте <b>BITRIX24_CLIENT_SECRET</b> в настройках Render.</p>
+                    </div>
+                `);
             }
 
-            console.log('Token acquired. Registering bot...');
+            if (tokenData.scope === 'app' || !tokenData.scope || !tokenData.scope.includes('imbot')) {
+                console.warn('WARNING: Token has empty or restricted scope:', tokenData.scope);
+            }
 
             // Register OR Update Bot
             let botId = null;
@@ -361,7 +370,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
     const protocol = req.get('x-forwarded-proto') || req.protocol;
     const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
     const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
-    const scopes = 'im,imbot,imopenlines,rest,placement,crm';
+    const scopes = 'im imbot imopenlines rest placement crm';
 
     // Use the DOMAIN from Bitrix request if available, otherwise fallback to env
     const portalDomain = DOMAIN || process.env.BITRIX24_DOMAIN;
@@ -385,7 +394,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         `);
     }
 
-    const oauthUrl = `https://${portalDomain}/oauth/authorize/?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}`;
+    const oauthUrl = `https://${portalDomain}/oauth/authorize/?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
 
     // Case B: Application Load (POST from Bitrix Interface)
     if (AUTH_ID && !req.body.action) {
@@ -527,11 +536,26 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     }
                 }
 
-                const hasScope = appInfo.result && appInfo.result.SCOPE;
+                const hasScope = appInfo.result && appInfo.result.SCOPE && appInfo.result.SCOPE.includes('imopenlines');
                 const isInstalled = appInfo.result && appInfo.result.INSTALLED;
+                const rawScope = appInfo.result && appInfo.result.SCOPE ? appInfo.result.SCOPE : 'пусто';
+                const isNarrowedScope = rawScope === 'app';
 
                 let criticalWarning = '';
-                if (!hasScope || !isInstalled) {
+                if (isNarrowedScope) {
+                    criticalWarning = `
+                        <div style="background: #fff9db; border: 2px solid #f08c00; padding: 20px; border-radius: 12px; margin-bottom: 25px; color: #855d00;">
+                            <h3 style="margin-top: 0;">⚠️ Ограниченные права (Scope narrowing)</h3>
+                            <p>Битрикс выдал токен только с правом <b>"app"</b>. Это означает, что он игнорирует запрос на <i>im, imbot, imopenlines</i>.</p>
+                            <p style="font-weight: bold;">КАК ИСПРАВИТЬ:</p>
+                            <ol>
+                                <li>Зайдите в настройки Локального приложения в Битриксе.</li>
+                                <li>Убедитесь, что галочки <b>"Чат и уведомления"</b> и <b>"Чат-боты"</b> не просто стоят, а <b>СОХРАНЕНЫ</b> (нажмите кнопку "Сохранить" в самом низу страницы).</li>
+                                <li>После сохранения обязательно нажмите кнопку <b>"🔑 Принудительно обновить права (OAuth)"</b> на этой странице.</li>
+                            </ol>
+                        </div>
+                    `;
+                } else if (!hasScope || !isInstalled) {
                     criticalWarning = `
                         <div style="background: #fff0f0; border: 2px solid #e03131; padding: 20px; border-radius: 12px; margin-bottom: 25px; color: #c92a2a;">
                             <h3 style="margin-top: 0;">❌ Проблема синхронизации прав (Bitrix Box Issue)</h3>
