@@ -698,9 +698,9 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         <h3>Активные Event Bindings (Куда Битрикс шлет события):</h3>
                         <div style="background: #eef2f7; padding: 10px; border-radius: 5px;">
                             ${eventList.result && eventList.result.length > 0 ? eventList.result.map(ev => `
-                                <div style="padding: 5px; border-bottom: 1px solid #ddd;">
-                                    <b>${ev.EVENT}</b> -> <code>${ev.HANDLER}</code> 
-                                    ${ev.HANDLER === redirectUri ? '<span style="color: green;">(Наш сервер ✅)</span>' : '<span style="color: #666;">(Другой)</span>'}
+                                <div style="padding: 5px; border-bottom: 1px solid #ddd; font-size: 11px;">
+                                    <b>${ev.event}</b> -> <code>${ev.handler}</code> 
+                                    ${ev.handler === redirectUri ? '<span style="color: green;">(Наш сервер ✅)</span>' : '<span style="color: #c62828;">(Чужой/Старый ❌)</span>'}
                                 </div>
                             `).join('') : '<p>События не привязаны</p>'}
                         </div>
@@ -725,9 +725,10 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 let results = [];
                 if (list.result) {
                     for (const ev of list.result) {
-                        if (ev.HANDLER === redirectUri) {
-                            const unbindRes = await bitrixBot.callMethod('event.unbind', { EVENT: ev.EVENT, HANDLER: ev.HANDLER }, { access_token: AUTH_ID, domain: portal });
-                            results.push({ event: ev.EVENT, result: unbindRes });
+                        // In event.get, properties are lowercase: ev.event, ev.handler
+                        if (ev.handler === redirectUri) {
+                            const unbindRes = await bitrixBot.callMethod('event.unbind', { EVENT: ev.event, HANDLER: ev.handler }, { access_token: AUTH_ID, domain: portal });
+                            results.push({ event: ev.event, result: unbindRes });
                         }
                     }
                 }
