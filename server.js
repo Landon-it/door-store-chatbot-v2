@@ -566,10 +566,23 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         if (opts.USER_ID) testUserId = opts.USER_ID;
                     } catch (e) { }
                 }
-                const result = await bitrixBot.sendMessage('4867', testUserId, 'Привет! Это тестовое сообщение от сервера. Если ты его видишь, значит исходящая связь работает.', { access_token: AUTH_ID, domain: portal });
+
+                // Dynamic Discovery instead of hardcoded ID
+                let targetBotId = null;
+                const bots = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
+                if (bots.result) {
+                    const mine = Object.values(bots.result).find(b => b.CODE === 'door_store_bot');
+                    if (mine) targetBotId = mine.ID;
+                }
+
+                if (!targetBotId) {
+                    return res.send(`<h1>Error</h1><p>Бот door_store_bot не найден. Сначала выполните установку.</p><a href="javascript:history.back()">Назад</a>`);
+                }
+
+                const result = await bitrixBot.sendMessage(targetBotId, testUserId, 'Привет! Это тестовое сообщение от сервера. Если ты его видишь, значит исходящая связь работает.', { access_token: AUTH_ID, domain: portal });
                 return res.send(`
                     <div style="font-family: sans-serif; padding: 30px;">
-                        <h3>Результат теста imbot.message.add (User ${testUserId}):</h3>
+                        <h3>Результат теста imbot.message.add (Bot ID: ${targetBotId}, User ${testUserId}):</h3>
                         <pre style="background: #f4f4f4; padding: 10px;">${JSON.stringify(result, null, 2)}</pre>
                         <a href="javascript:history.back()">Назад</a>
                     </div>
@@ -602,7 +615,37 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                                 </div>
                             `).join('') : '<p>Боты не найдены</p>'}
                         </div>
-                        <br>
+                        <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Назад</a>
+                        <hr style="margin: 20px 0;">
+                        <div style="background: #fff0f0; padding: 15px; border-radius: 8px; border: 1px solid #ffcdd2;">
+                            <h4 style="margin-top: 0; color: #c62828;">💣 Зона сброса (Debug)</h4>
+                            <form method="POST" action="/api/bitrix/webhook?DOMAIN=${portal}&action=unbind_events">
+                                <input type="hidden" name="AUTH_ID" value="${AUTH_ID}">
+                                <button type="submit" style="background: #d32f2f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;">Полный сброс всех событий (Reset Events)</button>
+                            </form>
+                        </div>
+                    </div>
+                `);
+            }
+
+            if (action === 'unbind_events') {
+                console.log('Action: unbind_events. Removing all bindings for this URL:', redirectUri);
+                const list = await bitrixBot.callMethod('event.get', {}, { access_token: AUTH_ID, domain: portal });
+                let results = [];
+                if (list.result) {
+                    for (const ev of list.result) {
+                        if (ev.HANDLER === redirectUri) {
+                            const unbindRes = await bitrixBot.callMethod('event.unbind', { EVENT: ev.EVENT, HANDLER: ev.HANDLER }, { access_token: AUTH_ID, domain: portal });
+                            results.push({ event: ev.EVENT, result: unbindRes });
+                        }
+                    }
+                }
+                return res.send(`
+                    <div style="font-family: sans-serif; padding: 40px; text-align: center;">
+                        <h1>Event Cleanup Results</h1>
+                        <div style="background: #f4f4f4; padding: 20px; text-align: left; display: inline-block;">
+                            <pre>${JSON.stringify(results, null, 2)}</pre>
+                        </div><br><br>
                         <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Назад</a>
                     </div>
                 `);
