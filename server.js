@@ -460,10 +460,11 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     <h1>🤖 Управление ботом</h1>
                     
                     ${isNarrowed ? `
-                        <div class="warning" style="text-align: left;">
-                            <strong>⚠️ Внимание: Проблема с правами (Scope Narrowing)</strong><br>
-                            Битрикс выдал права только <code>app</code>. Это часто случается в "Коробке". 
-                            Бот может не видеть сообщения, пока вы не нажмете "Обновить права" ниже и не подтвердите их.
+                        <div class="warning-sc" style="text-align: left;">
+                            <strong>⚠️ Внимание: Ограниченные права (Scope: ${bitrixAppInfoResult.SCOPE || 'empty'})</strong><br>
+                            Битрикс вернул пустой или ограниченный список прав. Это "болезнь" коробочных версий.<br>
+                            <b>Что делать:</b> В Битриксе зайдите в настройки этого приложения, еще раз выберите права (Чат, Линии, CRM) и нажмите <b>СОХРАНИТЬ</b>. 
+                            Затем нажмите кнопку "Обновить права" ниже.
                         </div>
                     ` : ''}
 
@@ -516,6 +517,12 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                             ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
                             <input type="hidden" name="action" value="diagnostics">
                             <button type="submit" class="btn btn-secondary">🔍 Диагностика всех ботов и URIs</button>
+                        </form>
+
+                        <form method="POST">
+                            ${Object.keys(req.body).map(key => `<input type="hidden" name="${key}" value="${req.body[key]}">`).join('\n')}
+                            <input type="hidden" name="action" value="bind_manual">
+                            <button type="submit" class="btn btn-secondary">📍 Принудительно привязать Event Handler (Hand Fix)</button>
                         </form>
                     </div>
 
@@ -596,6 +603,22 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                             `).join('') : '<p>Боты не найдены</p>'}
                         </div>
                         <br>
+                        <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Назад</a>
+                    </div>
+                `);
+            }
+
+            if (action === 'bind_manual') {
+                console.log('Action: bind_manual. Registering events for handle URL:', redirectUri);
+                const e1 = await bitrixBot.registerEvent('ONIMBOTMESSAGEADD', redirectUri, { access_token: AUTH_ID, domain: portal });
+                const e2 = await bitrixBot.registerEvent('ONIMBOTJOINCHAT', redirectUri, { access_token: AUTH_ID, domain: portal });
+                console.log('Bind results:', JSON.stringify({ e1, e2 }, null, 2));
+                return res.send(`
+                    <div style="font-family: sans-serif; padding: 40px; text-align: center;">
+                        <h1>Manual Bind Results</h1>
+                        <div style="background: #f4f4f4; padding: 20px; text-align: left; display: inline-block;">
+                            <pre>${JSON.stringify({ ONIMBOTMESSAGEADD: e1, ONIMBOTJOINCHAT: e2 }, null, 2)}</pre>
+                        </div><br><br>
                         <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Назад</a>
                     </div>
                 `);
