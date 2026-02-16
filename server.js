@@ -409,33 +409,28 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
     // Case B: Application Load (POST from Bitrix Interface)
     if (AUTH_ID && !req.body.action) {
-        console.log('App loaded via POST. Verifying scopes...');
+        console.log('App loaded via POST. Verifying status...');
+        let hasScope = false;
+        let isNarrowed = false;
         try {
             const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
-            const hasScope = appInfo.result && appInfo.result.SCOPE && appInfo.result.SCOPE.includes('imopenlines');
+            const rawScope = appInfo.result && appInfo.result.SCOPE ? appInfo.result.SCOPE : '';
+            hasScope = rawScope.includes('imbot') || rawScope.includes('imopenlines');
+            isNarrowed = rawScope === 'app';
 
-            if (!hasScope) {
+            if (!hasScope && !isNarrowed) {
                 console.log('CRITICAL: Scopes missing in current token. Redirecting top window to OAuth...');
                 return res.send(`
                     <!DOCTYPE html>
                     <html>
                     <body style="font-family: sans-serif; text-align: center; padding: 50px;">
                         <div style="background: #fff5f5; border: 1px solid #ffc9c9; padding: 30px; border-radius: 12px; color: #c92a2a; display: inline-block;">
-                            <h2>🔓 Требуется подтверждение прав</h2>
-                            <p>Для работы бота необходимо подтвердить доступ к чатам и линиям.</p>
-                            <p>Нажмите кнопку ниже для авторизации.</p>
+                            <h2>🔓 Требуется авторизация</h2>
+                            <p>Для работы бота необходимо подтвердить доступ в настройках приложения.</p>
                             <a href="${oauthUrl}" target="_top" style="background: #e03131; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 15px;">
                                 ✅ РАЗРЕШИТЬ ДОСТУП
                             </a>
-                            <p style="font-size: 12px; margin-top: 20px; color: #868e96;">Это обновит ваш токен доступа в Bitrix24 Box.</p>
                         </div>
-                        <script>
-                            // Auto-redirect top window if possible
-                            setTimeout(() => {
-                                // Bitrix IFrames usually allow top-level navigation if the user is in the portal
-                                // window.top.location.href = "${oauthUrl}";
-                            }, 3000);
-                        </script>
                     </body>
                     </html>
                 `);
@@ -509,10 +504,11 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
     if (AUTH_ID && req.body.action) {
         const action = req.body.action;
+        const portal = DOMAIN || process.env.BITRIX24_DOMAIN;
 
         const botParams = {
             'CODE': 'door_store_bot',
-            'TYPE': 'H', // Use 'H' (Humanized) for better Open Lines compatibility
+            'TYPE': 'H',
             'EVENT_HANDLER': redirectUri,
             'OPENLINE': 'Y',
             'PROPERTIES': {
@@ -527,132 +523,67 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         };
 
         try {
-            // ACTION: Diagnostics
-            if (action === 'diagnostics') {
-                const list = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
-                const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
-
-                let myBotDetails = "Bot record found, but details method failed.";
-                if (list.result) {
-                    const myBot = Object.values(list.result).find(b => b.CODE === 'door_store_bot');
-                    if (myBot) {
-                        try {
-                            const detailRes = await bitrixBot.callMethod('imbot.bot.get', { BOT_ID: myBot.ID }, { access_token: AUTH_ID, domain: DOMAIN });
-                            myBotDetails = JSON.stringify(detailRes, null, 2);
-                        } catch (e) {
-                            myBotDetails = `Error fetching details: ${e.message}`;
-                        }
-                    } else {
-                        myBotDetails = "Bot 'door_store_bot' not found in the list.";
-                    }
-                }
-
-                const hasScope = appInfo.result && appInfo.result.SCOPE && appInfo.result.SCOPE.includes('imopenlines');
-                const isInstalled = appInfo.result && appInfo.result.INSTALLED;
-                const rawScope = appInfo.result && appInfo.result.SCOPE ? appInfo.result.SCOPE : 'пусто';
-                const isNarrowedScope = rawScope === 'app';
-
-                let criticalWarning = '';
-                if (isNarrowedScope) {
-                    criticalWarning = `
-                        <div style="background: #fff9db; border: 2px solid #f08c00; padding: 20px; border-radius: 12px; margin-bottom: 25px; color: #855d00;">
-                            <h3 style="margin-top: 0;">⚠️ Ограниченные права (Scope narrowing)</h3>
-                            <p>Битрикс выдал токен только с правом <b>"app"</b>. Это означает, что он игнорирует запрос на <i>im, imbot, imopenlines</i>.</p>
-                            <p style="font-weight: bold;">КАК ИСПРАВИТЬ:</p>
-                            <ol>
-                                <li>Зайдите в настройки Локального приложения в Битриксе.</li>
-                                <li>Убедитесь, что галочки <b>"Чат и уведомления"</b> и <b>"Чат-боты"</b> не просто стоят, а <b>СОХРАНЕНЫ</b> (нажмите кнопку "Сохранить" в самом низу страницы).</li>
-                                <li>После сохранения обязательно нажмите кнопку <b>"🔑 Принудительно обновить права (OAuth)"</b> на этой странице.</li>
-                            </ol>
-                        </div>
-                    `;
-                } else if (!hasScope || !isInstalled) {
-                    criticalWarning = `
-                        <div style="background: #fff0f0; border: 2px solid #e03131; padding: 20px; border-radius: 12px; margin-bottom: 25px; color: #c92a2a;">
-                            <h3 style="margin-top: 0;">❌ Проблема синхронизации прав (Bitrix Box Issue)</h3>
-                            <p>Битрикс сообщает, что у приложения <b>нет прав (SCOPE: ${appInfo.result && appInfo.result.SCOPE ? appInfo.result.SCOPE : 'пусто'})</b>, хотя в настройках галочки стоят.</p>
-                            <p style="font-weight: bold;">ВАШЕ ДЕЙСТВИЕ В БИТРИКСЕ:</p>
-                            <ol>
-                                <li>Вернитесь в настройки Локального приложения в Битриксе.</li>
-                                <li>Нажмите на голубую кнопку <b>ПЕРЕУСТАНОВИТЬ</b> (рядом с кнопкой "Перейти к приложению").</li>
-                                <li>Это ОБЯЗАТЕЛЬНО для обновления токенов в коробочной версии.</li>
-                            </ol>
-                        </div>
-                    `;
-                }
-
+            if (action === 'test_message') {
+                const result = await bitrixBot.sendMessage('4867', req.body.USER_ID || '110', 'Привет! Это тестовое сообщение от сервера. Если ты его видишь, значит исходящая связь работает.', { access_token: AUTH_ID, domain: portal });
                 return res.send(`
-                    <!DOCTYPE html>
-                    <html>
-                    <body style="font-family: 'Segoe UI', sans-serif; padding: 20px; color: #333; line-height: 1.5; background: #f0f2f5;">
-                        <div style="max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-                            <h2 style="color: #102a43; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-top: 0;">🔍 Диагностика подключения</h2>
-                            
-                            <div style="margin-bottom: 25px; font-size: 14px; color: #627d98; background: #f8fafc; padding: 10px; border-radius: 8px;">
-                                <strong>Домен:</strong> ${DOMAIN} | 
-                                <strong>Обработчик (HANDLER):</strong> <code style="color: #d63384;">${redirectUri}</code>
-                            </div>
-
-                            ${criticalWarning}
-
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                                <div>
-                                    <h4 style="margin-bottom: 10px;">Статус в Б24:</h4>
-                                    <div style="padding: 15px; border-radius: 8px; background: ${isInstalled ? '#ebfbee' : '#fff9db'}; color: ${isInstalled ? '#2b8a3e' : '#f08c00'}; font-weight: bold; border: 1px solid currentColor;">
-                                        ${isInstalled ? '✅ Установлено' : '⏳ Требует переустановки'}
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 style="margin-bottom: 10px;">Права доступа (Scope):</h4>
-                                    <div style="padding: 15px; border-radius: 8px; background: ${hasScope ? '#ebfbee' : '#fff5f5'}; color: ${hasScope ? '#2b8a3e' : '#e03131'}; font-weight: bold; border: 1px solid currentColor; word-break: break-all;">
-                                        ${hasScope ? appInfo.result.SCOPE : '❌ НЕТ ПРАВ'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h3 style="margin-top: 30px; font-size: 16px;">1. Ответ app.info:</h3>
-                            <pre style="background: #1a1a1a; color: #00ff00; padding: 15px; border-radius: 8px; overflow: auto; font-size: 12px; max-height: 200px;">${JSON.stringify(appInfo, null, 2)}</pre>
-                            
-                            <h3 style="margin-top: 20px; font-size: 16px;">2. Детали нашего бота (imbot.bot.get):</h3>
-                            <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow: auto; font-size: 12px; border: 1px solid #dee2e6;">${myBotDetails}</pre>
-
-                            <h3 style="margin-top: 20px; font-size: 16px;">3. Все боты на портале:</h3>
-                            <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; max-height: 200px; overflow: auto; font-size: 12px; border: 1px solid #dee2e6;">${JSON.stringify(list, null, 2)}</pre>
-                            
-                            <div style="margin-top: 30px; text-align: center;">
-                                <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 12px 30px; border-radius: 8px; font-weight: bold; text-decoration: none; display: inline-block;">⬅️ Вернуться в меню управления</a>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
+                    <div style="font-family: sans-serif; padding: 30px;">
+                        <h3>Результат теста imbot.message.add:</h3>
+                        <pre style="background: #f4f4f4; padding: 10px;">${JSON.stringify(result, null, 2)}</pre>
+                        <a href="javascript:history.back()">Назад</a>
+                    </div>
                 `);
             }
 
-            // ACTION: Force Reinstall
+            if (action === 'diagnostics') {
+                const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: portal });
+                const botList = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
+
+                return res.send(`
+                    <div style="font-family: sans-serif; padding: 20px;">
+                        <h2>Диагностика Bitrix24</h2>
+                        <h3>Общая инфо приложения:</h3>
+                        <pre style="background: #f4f4f4; padding: 10px;">${JSON.stringify(appInfo.result, null, 2)}</pre>
+                        
+                        <h3>Список зарегистрированных ботов:</h3>
+                        <div style="display: grid; gap: 10px;">
+                            ${botList.result ? Object.values(botList.result).map(b => `
+                                <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
+                                    <b>${b.PROPERTIES ? b.PROPERTIES.NAME : 'Без имени'}</b> (ID: ${b.ID}, CODE: ${b.CODE})<br>
+                                    URL обработчика: <code>${b.EVENT_HANDLER || (b.PROPERTIES && b.PROPERTIES.EVENT_HANDLER) || 'не указан'}</code><br>
+                                    Версия портала: ${b.BOT_TYPE}<br>
+                                    Права: ${b.OPENLINE === 'Y' ? '✅ Открытые линии' : '❌ Нет линий'}
+                                </div>
+                            `).join('') : '<p>Боты не найдены</p>'}
+                        </div>
+                        <br>
+                        <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Назад</a>
+                    </div>
+                `);
+            }
+
             if (action === 'force_reinstall') {
                 console.log('Action: force_reinstall. Finding existing bot to remove...');
-                const list = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
+                const list = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
                 if (list.result) {
                     const existing = Object.values(list.result).find(b => b.CODE === 'door_store_bot');
                     if (existing) {
                         console.log(`Unregistering bot ID=${existing.ID}...`);
-                        await bitrixBot.unregisterBot(existing.ID, { access_token: AUTH_ID, domain: DOMAIN });
+                        await bitrixBot.unregisterBot(existing.ID, { access_token: AUTH_ID, domain: portal });
                     }
                 }
-                // Continue to install fresh...
             }
 
             // ACTION: Install / Re-install part
             let botId = null;
-            const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: AUTH_ID, domain: DOMAIN });
+            const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: AUTH_ID, domain: portal });
 
             if (regResult.error) {
                 // If it exists and we are NOT in force_reinstall, try to update
-                const listResult = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: DOMAIN });
+                const listResult = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
                 if (listResult.result) {
                     const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
                     if (existingBot) {
-                        const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: AUTH_ID, domain: DOMAIN });
+                        const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: AUTH_ID, domain: portal });
                         if (updResult.error) return res.send(`<h1>Update Error</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
                         botId = existingBot.ID;
                     } else {
@@ -677,7 +608,8 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 </html>
             `);
         } catch (error) {
-            return res.send(`<h1>System Error</h1><pre>${error.message}</pre>`);
+            console.error('Action execution failed:', error);
+            return res.send(`<h1>System Error</h1><pre>${error.message}</pre><a href="javascript:history.back()">Назад</a>`);
         }
     }
 
