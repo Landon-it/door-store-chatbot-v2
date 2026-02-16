@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import { catalogManager } from './catalog-manager.js';
 import cron from 'node-cron';
+import { Telegraf } from 'telegraf';
 
 dotenv.config();
 
@@ -147,3 +148,45 @@ app.post('/api/chat', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+// Telegram Bot Integration
+const botToken = process.env.TELEGRAM_BOT_TOKEN;
+if (botToken) {
+    const bot = new Telegraf(botToken);
+
+    bot.start((ctx) => ctx.reply('Привет! Я виртуальный помощник магазина "Двери Екатеринбурга". Задайте мне любой вопрос о дверях или фурнитуре. ✨🚪'));
+
+    bot.on('text', async (ctx) => {
+        const userMessage = ctx.message.text;
+
+        try {
+            // Simple typing indicator
+            await ctx.sendChatAction('typing');
+
+            // Search catalog for context
+            const searchResults = catalogManager.search(userMessage);
+            const productsContext = searchResults.map(p => {
+                const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
+                return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''}`;
+            }).join('\n');
+
+            // Generate AI response
+            const aiResponse = await generateAIResponse(userMessage, [], productsContext);
+
+            // Send response back to Telegram (using Markdown filtering/conversion if needed, but Telegraf handles basic Markdown)
+            await ctx.reply(aiResponse, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('Telegram Bot Error:', error);
+            ctx.reply('Извините, произошла ошибка при обработке вашего сообщения. 🛠');
+        }
+    });
+
+    bot.launch();
+    console.log('Telegram Bot logic initialized');
+
+    // Enable graceful stop
+    process.once('SIGINT', () => bot.stop('SIGINT'));
+    process.once('SIGTERM', () => bot.stop('SIGTERM'));
+} else {
+    console.log('TELEGRAM_BOT_TOKEN not provided, skipping Telegram integration');
+}
