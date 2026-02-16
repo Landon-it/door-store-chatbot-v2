@@ -172,12 +172,18 @@ if (botToken) {
 
             // Generate AI response
             const aiResponse = await generateAIResponse(userMessage, [], productsContext);
+            console.log(`AI Response for Telegram: "${aiResponse.substring(0, 100)}..."`);
 
-            // Send response back to Telegram (using Markdown filtering/conversion if needed, but Telegraf handles basic Markdown)
-            await ctx.reply(aiResponse, { parse_mode: 'Markdown' });
+            // Send response back to Telegram
+            // We remove parse_mode: 'Markdown' because it's very fragile with random AI output.
+            // If we need formatting, we should sanitize it first.
+            await ctx.reply(aiResponse);
         } catch (error) {
-            console.error('Telegram Bot Error:', error);
-            ctx.reply('Извините, произошла ошибка при обработке вашего сообщения. 🛠');
+            console.error('>>> [TELEGRAM BOT ERROR]:', error.message);
+            if (error.response) {
+                console.error('Telegram API Error Data:', JSON.stringify(error.response));
+            }
+            ctx.reply('Извините, произошла ошибка при обработке вашего сообщения. Попробуйте другой вопрос. 🛠');
         }
     });
 
