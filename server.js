@@ -695,6 +695,14 @@ app.post('/api/bitrix/webhook', async (req, res) => {
     res.status(200).send('Bitrix24 Bot Server. No event or auth data received.');
 });
 
+// Alias for installation path to satisfy Bitrix requirement for install.php style URLs
+app.post('/api/bitrix/install', (req, res) => {
+    console.log('>>> [INSTALL ROUTE CALLED]. Redirecting to webhook logic.');
+    // Forward the request to the webhook handler internally
+    req.url = '/api/bitrix/webhook';
+    return app._router.handle(req, res);
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
