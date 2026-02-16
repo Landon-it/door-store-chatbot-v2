@@ -449,6 +449,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     .btn-danger { background: #cc3300; }
                     .info { margin-top: 25px; padding: 15px; background: #eef2f7; border-radius: 8px; font-size: 13px; color: #334e68; }
                     .warning { background: #fff5f5; border: 1px solid #ffc9c9; color: #c92a2a; padding: 15px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; }
+                    .warning-sc { background: #fff9db; border: 1px solid #fab005; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; }
                     .section { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
                     label { font-weight: bold; display: block; margin-bottom: 10px; color: #102a43; }
                 </style>
@@ -620,25 +621,32 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
             if (!regResult.error) {
                 botId = regResult.result;
-                // FORCE UPDATE to ensure EVENT_HANDLER is saved
-                console.log(`Forcing update for bot ${botId} to ensure handler URL is saved...`);
-                const forceUpd = await bitrixBot.updateBot(botId, botParams, { access_token: AUTH_ID, domain: portal });
-                console.log('Force update result:', JSON.stringify(forceUpd, null, 2));
             } else {
-                // If it exists but register failed (e.g. some error other than "already exists"), try list and update
+                // If it exists or register failed, try to finding it
                 const listResult = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
                 if (listResult.result) {
                     const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
                     if (existingBot) {
-                        console.log(`Bot already exists (ID: ${existingBot.ID}). Running updateBot...`);
-                        const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: AUTH_ID, domain: portal });
-                        console.log('Update result:', JSON.stringify(updResult, null, 2));
-                        if (updResult.error) return res.send(`<h1>Update Error</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
                         botId = existingBot.ID;
-                    } else {
-                        return res.send(`<h1>Error</h1><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
+                        console.log(`Bot already exists (ID: ${botId}). Proceeding with update...`);
                     }
                 }
+            }
+
+            if (botId) {
+                // FORCE UPDATE to ensure EVENT_HANDLER is saved
+                console.log(`Forcing update for bot ${botId} to ensure handler URL is saved...`);
+                const forceUpd = await bitrixBot.callMethod('imbot.update', {
+                    'BOT_ID': botId,
+                    'EVENT_HANDLER': redirectUri
+                }, { access_token: AUTH_ID, domain: portal });
+                console.log('Force update result:', JSON.stringify(forceUpd, null, 2));
+
+                console.log('Binding event ONIMBOTMESSAGEADD...');
+                const eventResult = await bitrixBot.registerEvent('ONIMBOTMESSAGEADD', redirectUri, { access_token: AUTH_ID, domain: portal });
+                console.log('Event bind result:', JSON.stringify(eventResult, null, 2));
+            } else {
+                return res.send(`<h1>Error</h1><p>Failed to register or find bot</p><pre>${JSON.stringify(regResult, null, 2)}</pre>`);
             }
 
             return res.send(`

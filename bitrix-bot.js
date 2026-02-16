@@ -84,6 +84,13 @@ class BitrixBot {
     async appInfo(auth) {
         return await this.callMethod('app.info', {}, auth);
     }
+
+    async registerEvent(event, url, auth) {
+        return await this.callMethod('event.bind', {
+            'EVENT': event,
+            'HANDLER': url
+        }, auth);
+    }
 }
 
 export default BitrixBot;
