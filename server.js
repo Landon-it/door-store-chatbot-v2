@@ -325,7 +325,10 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
     // Case A: Webhook Event (Async processing)
     if (event) {
-        console.log('Received Webhook Event:', event);
+        console.log(`>>> [DEBUG] RECEIVED BITRIX24 EVENT: ${event}`);
+        console.log('>>> [DEBUG] DATA:', JSON.stringify(req.body.data));
+        console.log('>>> [DEBUG] AUTH:', JSON.stringify(req.body.auth));
+
         res.status(200).send(''); // Acknowledge immediately
 
         const data = req.body.data;
@@ -334,26 +337,41 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         if (event === 'ONIMBOTMESSAGEADD') {
             const userMessage = data.PARAMS.MESSAGE;
             const chatId = data.PARAMS.DIALOG_ID;
-            const botId = data.BOT_ID;
+            const botId = data.BOT_ID || (data.PARAMS && data.PARAMS.BOT_ID);
+
+            console.log(`>>> [DEBUG] Processing message: "${userMessage}" from chat ${chatId} (Bot ID: ${botId})`);
 
             try {
+                // Determine portal domain from auth or data
+                const portal = auth.domain || data.DOMAIN || process.env.BITRIX24_DOMAIN;
+
                 // Search catalog for context
+                console.log('>>> [DEBUG] Searching catalog...');
                 const searchResults = catalogManager.search(userMessage);
+                console.log(`>>> [DEBUG] Found ${searchResults.length} products.`);
+
                 const productsContext = searchResults.map(p => {
                     const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
                     return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''}`;
                 }).join('\n');
 
                 // Generate AI response
+                console.log('>>> [DEBUG] Generating AI response...');
                 let aiResponse = await generateAIResponse(userMessage, [], productsContext);
+                console.log(`>>> [DEBUG] AI Response ready: "${aiResponse.substring(0, 50)}..."`);
 
-                // Remove HTML tags for Bitrix24 if any (Bitrix uses its own BB-codes or plain text)
+                // Remove HTML tags for Bitrix24 if any
                 aiResponse = aiResponse.replace(/<[^>]*>?/gm, '');
 
                 // Send back to Bitrix24
-                await bitrixBot.sendMessage(botId, chatId, aiResponse, auth);
+                console.log('>>> [DEBUG] Sending message back to Bitrix...');
+                const response = await bitrixBot.sendMessage(botId, chatId, aiResponse, {
+                    access_token: auth.access_token,
+                    domain: portal
+                });
+                console.log('>>> [DEBUG] Bitrix response:', JSON.stringify(response));
             } catch (error) {
-                console.error('Bitrix24 Error:', error);
+                console.error('>>> [CRITICAL] Bitrix24 Error:', error);
             }
         }
         return;
