@@ -644,7 +644,8 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 // Dynamic Discovery instead of hardcoded ID
                 let targetBotId = null;
                 const bots = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
-                console.log('Bot list for test_message:', JSON.stringify(bots.result, null, 2));
+                console.log('Bot list for test_message (Total:', Object.keys(bots.result || {}).length, '):', JSON.stringify(bots.result, null, 2));
+
                 if (bots.result) {
                     const mine = Object.values(bots.result).find(b => b.CODE === 'door_store_bot');
                     if (mine) targetBotId = mine.ID;
@@ -654,11 +655,15 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                     return res.send(`<h1>Error</h1><p>Бот door_store_bot не найден. Сначала выполните установку.</p><a href="javascript:history.back()">Назад</a>`);
                 }
 
+                console.log(`Sending test message from Bot ${targetBotId} to User ${testUserId}...`);
                 const result = await bitrixBot.sendMessage(targetBotId, testUserId, 'Привет! Это тестовое сообщение от сервера. Если ты его видишь, значит исходящая связь работает.', { access_token: AUTH_ID, domain: portal });
+                console.log('Send message raw result:', JSON.stringify(result, null, 2));
+
                 return res.send(`
                     <div style="font-family: sans-serif; padding: 30px;">
                         <h3>Результат теста imbot.message.add (Bot ID: ${targetBotId}, User ${testUserId}):</h3>
                         <pre style="background: #f4f4f4; padding: 10px;">${JSON.stringify(result, null, 2)}</pre>
+                        <p>${result.error ? '❌ Ошибка: ' + result.error_description : '✅ Сообщение отправлено! Проверьте чаты.'}</p>
                         <a href="javascript:history.back()">Назад</a>
                     </div>
                 `);
@@ -667,22 +672,21 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             if (action === 'diagnostics') {
                 const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: portal });
                 const botList = await bitrixBot.getBotList({ access_token: AUTH_ID, domain: portal });
+                const eventList = await bitrixBot.callMethod('event.get', {}, { access_token: AUTH_ID, domain: portal });
 
                 return res.send(`
                     <div style="font-family: sans-serif; padding: 20px;">
                         <h2>Диагностика Bitrix24</h2>
                         <p><b>Сервер запущен как:</b> <code>${redirectUri}</code></p>
                         <h3>Общая инфо приложения:</h3>
-                        <pre style="background: #f4f4f4; padding: 10px;">${JSON.stringify(appInfo.result, null, 2)}</pre>
+                        <pre style="background: #f4f4f4; padding: 10px; font-size: 11px;">${JSON.stringify(appInfo.result, null, 2)}</pre>
                         
                         <h3>Список зарегистрированных ботов:</h3>
                         <div style="display: grid; gap: 10px;">
                             ${botList.result ? Object.values(botList.result).map(b => `
                                 <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: white;">
-                                    <b>${b.PROPERTIES ? b.PROPERTIES.NAME : (b.NAME || 'Без имени')}</b> (ID: ${b.ID}, CODE: ${b.CODE})<br>
+                                    <b>${b.NAME || b.CODE}</b> (ID: ${b.ID})<br>
                                     URL обработчика: <code style="color: ${b.EVENT_HANDLER ? 'green' : 'red'}">${b.EVENT_HANDLER || 'не указан'}</code><br>
-                                    Версия (TYPE): ${b.TYPE || 'не определен'}<br>
-                                    Права: ${b.OPENLINE === 'Y' || (b.PROPERTIES && b.PROPERTIES.OPENLINE === 'Y') ? '✅ Открытые линии' : '❌ Нет линий'}<br>
                                     <details style="margin-top: 5px; font-size: 11px;">
                                         <summary>Технические данные (JSON)</summary>
                                         <pre style="background: #f9f9f9; padding: 5px;">${JSON.stringify(b, null, 2)}</pre>
@@ -690,6 +694,18 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                                 </div>
                             `).join('') : '<p>Боты не найдены</p>'}
                         </div>
+
+                        <h3>Активные Event Bindings (Куда Битрикс шлет события):</h3>
+                        <div style="background: #eef2f7; padding: 10px; border-radius: 5px;">
+                            ${eventList.result && eventList.result.length > 0 ? eventList.result.map(ev => `
+                                <div style="padding: 5px; border-bottom: 1px solid #ddd;">
+                                    <b>${ev.EVENT}</b> -> <code>${ev.HANDLER}</code> 
+                                    ${ev.HANDLER === redirectUri ? '<span style="color: green;">(Наш сервер ✅)</span>' : '<span style="color: #666;">(Другой)</span>'}
+                                </div>
+                            `).join('') : '<p>События не привязаны</p>'}
+                        </div>
+
+                        <br>
                         <a href="javascript:history.back()" style="background: #0091ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Назад</a>
                         <hr style="margin: 20px 0;">
                         <div style="background: #fff0f0; padding: 15px; border-radius: 8px; border: 1px solid #ffcdd2;">
