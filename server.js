@@ -362,7 +362,30 @@ app.post('/api/bitrix/webhook', async (req, res) => {
     const secureProtocol = (protocol === 'https' || currentDomain.includes('localhost')) ? protocol : 'https';
     const redirectUri = `${secureProtocol}://${currentDomain}/api/bitrix/webhook`;
     const scopes = 'im,imbot,imopenlines,rest,placement,crm';
-    const oauthUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/authorize/?client_id=${process.env.BITRIX24_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}`;
+
+    // Use the DOMAIN from Bitrix request if available, otherwise fallback to env
+    const portalDomain = DOMAIN || process.env.BITRIX24_DOMAIN;
+    const clientId = process.env.BITRIX24_CLIENT_ID;
+
+    // VALIDATION: Prevent redirecting to "https://undefined/..."
+    if (!portalDomain || !clientId) {
+        console.error('ERROR: Missing BITRIX24_DOMAIN or BITRIX24_CLIENT_ID');
+        return res.status(500).send(`
+            <div style="font-family: sans-serif; padding: 30px; border: 1px solid #ffc9c9; background: #fff5f5; border-radius: 8px; color: #c92a2a;">
+                <h3>❌ Ошибка конфигурации (Environment Missing)</h3>
+                <p>На сервере Render не заданы переменные окружения:</p>
+                <ul>
+                    ${!portalDomain ? '<li>BITRIX24_DOMAIN (адрес вашего портала)</li>' : ''}
+                    ${!clientId ? '<li>BITRIX24_CLIENT_ID (ID из настроек приложения)</li>' : ''}
+                </ul>
+                <p>Пожалуйста, добавьте их в <b>Render Dashboard -> Environment</b> и дождитесь перезапуска.</p>
+                <hr>
+                <p style="font-size: 12px;">DOMAIN from request: ${DOMAIN || 'not provided'}</p>
+            </div>
+        `);
+    }
+
+    const oauthUrl = `https://${portalDomain}/oauth/authorize/?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}`;
 
     // Case B: Application Load (POST from Bitrix Interface)
     if (AUTH_ID && !req.body.action) {
@@ -370,7 +393,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         try {
             const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
             const hasScope = appInfo.result && appInfo.result.SCOPE && appInfo.result.SCOPE.includes('imopenlines');
-            
+
             if (!hasScope) {
                 console.log('CRITICAL: Scopes missing in current token. Redirecting top window to OAuth...');
                 return res.send(`
