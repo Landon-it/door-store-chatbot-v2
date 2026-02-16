@@ -526,6 +526,8 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         };
 
         try {
+            console.log(`Action executing: ${action}. Calculated redirectUri: ${redirectUri}`);
+
             if (action === 'test_message') {
                 const result = await bitrixBot.sendMessage('4867', req.body.USER_ID || '110', 'Привет! Это тестовое сообщение от сервера. Если ты его видишь, значит исходящая связь работает.', { access_token: AUTH_ID, domain: portal });
                 return res.send(`
@@ -544,6 +546,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 return res.send(`
                     <div style="font-family: sans-serif; padding: 20px;">
                         <h2>Диагностика Bitrix24</h2>
+                        <p><b>Сервер запущен как:</b> <code>${redirectUri}</code></p>
                         <h3>Общая инфо приложения:</h3>
                         <pre style="background: #f4f4f4; padding: 10px;">${JSON.stringify(appInfo.result, null, 2)}</pre>
                         
@@ -578,7 +581,9 @@ app.post('/api/bitrix/webhook', async (req, res) => {
 
             // ACTION: Install / Re-install part
             let botId = null;
+            console.log('Registering bot with params:', JSON.stringify(botParams, null, 2));
             const regResult = await bitrixBot.callMethod('imbot.register', botParams, { access_token: AUTH_ID, domain: portal });
+            console.log('Registration result:', JSON.stringify(regResult, null, 2));
 
             if (regResult.error) {
                 // If it exists and we are NOT in force_reinstall, try to update
@@ -586,7 +591,9 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                 if (listResult.result) {
                     const existingBot = Object.values(listResult.result).find(b => b.CODE === 'door_store_bot');
                     if (existingBot) {
+                        console.log(`Bot already exists (ID: ${existingBot.ID}). Running updateBot...`);
                         const updResult = await bitrixBot.updateBot(existingBot.ID, botParams, { access_token: AUTH_ID, domain: portal });
+                        console.log('Update result:', JSON.stringify(updResult, null, 2));
                         if (updResult.error) return res.send(`<h1>Update Error</h1><pre>${JSON.stringify(updResult, null, 2)}</pre>`);
                         botId = existingBot.ID;
                     } else {
