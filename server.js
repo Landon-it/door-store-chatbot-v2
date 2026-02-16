@@ -412,14 +412,14 @@ app.post('/api/bitrix/webhook', async (req, res) => {
         console.log('App loaded via POST. Verifying status...');
         let hasScope = false;
         let isNarrowed = false;
-        let appResult = {};
+        let bitrixAppInfoResult = {};
         try {
             const appInfo = await bitrixBot.appInfo({ access_token: AUTH_ID, domain: DOMAIN });
-            appResult = appInfo.result || {};
-            const rawScope = appResult.SCOPE ? appResult.SCOPE : '';
+            bitrixAppInfoResult = appInfo.result || {};
+            const rawScope = bitrixAppInfoResult.SCOPE ? bitrixAppInfoResult.SCOPE : '';
             hasScope = (rawScope.includes('imbot') || rawScope.includes('imopenlines'));
             isNarrowed = (rawScope === 'app' || rawScope === '' || !hasScope);
-            const isInstalled = appResult.INSTALLED || false;
+            const isInstalled = bitrixAppInfoResult.INSTALLED || false;
 
             if (isNarrowed) {
                 console.log(`[WARNING] Scope is restricted or empty ("${rawScope}"). Providing management UI access.`);
@@ -429,10 +429,10 @@ app.post('/api/bitrix/webhook', async (req, res) => {
             }
         } catch (err) {
             console.error('Scope Check Error:', err);
-            isNarrowed = true; // Assume suspicious if check fails
+            isNarrowed = true;
         }
 
-        console.log('Showing advanced Management UI.');
+        console.log('Showing advanced Management UI. bitrixAppInfoResult exists:', !!bitrixAppInfoResult);
         return res.send(`
             <!DOCTYPE html>
             <html>
@@ -466,7 +466,7 @@ app.post('/api/bitrix/webhook', async (req, res) => {
                         </div>
                     ` : ''}
 
-                    ${!appResult.INSTALLED ? `
+                    ${!bitrixAppInfoResult.INSTALLED ? `
                         <div class="warning" style="background: #e7f3ff; border-color: #74c0fc; color: #1971c2; text-align: left;">
                             <strong>ℹ️ Инфо: Приложение не установлено полностью.</strong><br>
                             Сейчас мы попробуем завершить установку автоматически...
