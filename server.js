@@ -276,7 +276,7 @@ if (botToken) {
                     [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
                     [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
                     [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }],
-                    [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
+                    [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
                 ]
             }
         };
