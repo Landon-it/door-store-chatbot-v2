@@ -329,9 +329,6 @@ if (botToken) {
         await ctx.reply(welcomeMessage, keyboard);
     });
 
-    bot.command('myid', (ctx) => {
-        ctx.reply(`Ваш Telegram ID: <code>${ctx.chat.id}</code>\nДобавьте его в .env как ADMIN_TELEGRAM_ID`, { parse_mode: 'HTML' });
-    });
 
     bot.on('text', async (ctx) => {
         const chatId = ctx.chat.id;
@@ -431,7 +428,7 @@ if (botToken) {
                 // Add persistent CTA buttons to almost every menu
                 const stickyButtons = [
                     [{ text: "📝 Оставить заявку", callback_data: "leave_request" }],
-                    [{ text: "📞 Позвонить нам", url: "tel:+73433170420" }]
+                    [{ text: "📞 Позвонить нам", url: "https://dveri-ekat.ru/page/kontakty" }]
                 ];
 
                 if (navButtons[theme]) {
@@ -518,10 +515,11 @@ if (botToken) {
     bot.action('zamer_cmd', zamerHandler);
 
     bot.command('contacts', (ctx) => {
-        ctx.reply('📍 Наш адрес: Екатеринбург, Базовый пер., 47 (у Леруа Мерлен)\n📞 Телефон: +7 (343) 317-04-20\n✉️ Email: office@dveri-ekat.ru', {
+        ctx.reply(`📍 Наш адрес: Екатеринбург, Базовый пер., 47 (у Леруа Мерлен)\n📞 Телефон: ${DEFAULT_CONFIG.operator.phone}\n✉️ Email: ${DEFAULT_CONFIG.operator.email}\n🕒 Часы работы: ${DEFAULT_CONFIG.operator.workHours}`, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "🗺 Открыть карту", url: "https://yandex.ru/maps/-/CCUfE0X0~A" }]
+                    [{ text: "🗺 Открыть карту", url: "https://yandex.ru/maps/-/CCUfE0X0~A" }],
+                    [{ text: "🌐 Наш сайт", url: "https://dveri-ekat.ru/" }]
                 ]
             }
         });
