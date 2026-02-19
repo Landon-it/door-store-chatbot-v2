@@ -217,6 +217,7 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
     }
 
     const data = await response.json();
+    let content = data.choices?.[0]?.message?.content || "";
     content = content.replace(/[^\u0400-\u04FF\u0020-\u007E\u00A0-\u00FF\u2000-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\s]/g, '');
 
     if (content.includes('[[LEAD:')) {
