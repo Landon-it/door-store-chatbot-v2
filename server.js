@@ -531,6 +531,11 @@ if (botToken) {
         { command: 'contacts', description: 'Наши контакты и адрес' }
     ]).catch(err => console.error('Failed to set commands:', err));
 
+    // Hide 'Menu' button tooltip — switch to standard commands list
+    bot.telegram.setChatMenuButton({ menu_button: { type: 'commands' } })
+        .catch(err => console.warn('setChatMenuButton:', err.message));
+
+
     const zamerHandler = (ctx) => {
         ctx.reply('📏 Записаться на бесплатный замер можно по ссылке ниже или просто оставьте ваши данные прямо здесь в чате.', {
             reply_markup: {
