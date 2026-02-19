@@ -396,23 +396,152 @@ if (botToken) {
     });
 
 
+    const processTelegramResponse = async (ctx, chatId, aiResponse, userMessage, extraOptions = {}) => {
+        if (!aiResponse) return;
+
+        // 1. Parse Navigation Tags
+        let extra = { ...extraOptions };
+        let hideButtons = false;
+
+        // 2. Handle Lead Tag (Check first to decide on hiding buttons)
+        const leadMatch = aiResponse.match(leadRegex);
+        if (leadMatch) {
+            try {
+                const leadData = JSON.parse(leadMatch[1]);
+                const sourceInfo = `TG (@${ctx.from.username || ctx.from.id})`;
+                const phone = String(leadData.phone || '').trim();
+                const hasPhone = phone && phone !== '-' && !phone.includes('НОМЕР') && !phone.includes('номер') && phone.length > 5;
+
+                if (hasPhone) {
+                    const interest = tgSessions[chatId]?.interest ? `\n🎯 Интерес: ${tgSessions[chatId].interest}` : '';
+                    const adminMsg = `<b>🔥 НОВЫЙ ЛИД (${sourceInfo})</b>\n\n👤 Имя: ${leadData.name}\n📞 Тел: ${leadData.phone}\n🏠 Адрес: ${leadData.address}${interest}`;
+                    await notifyAdmin(adminMsg);
+                    aiResponse = aiResponse.replace(leadRegex, '\n\n✅ Ваша заявка передана менеджеру! Мы свяжемся с вами в ближайшее время.').trim();
+                    hideButtons = true; // Success! Hide buttons
+                    tgSessions[chatId].isLeadFlow = false; // Reset flow state
+                } else {
+                    aiResponse = aiResponse.replace(leadRegex, '').trim();
+                    tgSessions[chatId].isLeadFlow = true; // Still in flow (waiting for phone)
+                }
+                tgSessions[chatId].history = [];
+            } catch (e) {
+                console.error('TG Lead parse error:', e);
+                aiResponse = aiResponse.replace(leadRegex, '').trim();
+            }
+        }
+
+        const navMatch = aiResponse.match(navRegex);
+        if (navMatch && !hideButtons) {
+            const theme = navMatch[1].trim();
+            aiResponse = aiResponse.replace(navRegex, '').trim();
+
+            const navButtons = {
+                "main_menu": [
+                    [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
+                    [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
+                    [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }],
+                    [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
+                ],
+                "interior": [
+                    [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
+                    [{ text: "🛠 Фурнитура", url: "https://dveri-ekat.ru/collection/furnitura" }]
+                ],
+                "interior_white": [
+                    [{ text: "⚪ Белые / Эмаль", url: "https://dveri-ekat.ru/collection/dveri-emal" }],
+                    [{ text: "🚪 Весь каталог", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }]
+                ],
+                "entrance": [
+                    [{ text: "🛡 Сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
+                    [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
+                ],
+                "brands": [
+                    [{ text: "🧱 WestStyle", url: "https://dveri-ekat.ru/collection/weststyle" }],
+                    [{ text: "🌌 Universe", url: "https://dveri-ekat.ru/collection/universe" }],
+                    [{ text: "🎶 Гармония", url: "https://dveri-ekat.ru/collection/garmoniya" }],
+                    [{ text: "🔄 Synergy", url: "https://dveri-ekat.ru/collection/sinerzhi-synergy" }],
+                    [{ text: "🌳 Albero", url: "https://dveri-ekat.ru/collection/albero" }],
+                    [{ text: "🏢 ВФД", url: "https://dveri-ekat.ru/collection/vladimirskaya-fabrika-dverey" }],
+                    [{ text: "⭐ La Stella", url: "https://dveri-ekat.ru/collection/la-stella-la-stella" }],
+                    [{ text: "🚪 Velldoris", url: "https://dveri-ekat.ru/collection/velldoris-velldoris" }],
+                    [{ text: "🛠 Lidman", url: "https://dveri-ekat.ru/collection/lidman" }],
+                    [{ text: "🛡 Аргус", url: "https://dveri-ekat.ru/collection/argus" }],
+                    [{ text: "➕ Еще (весь каталог)", url: "https://dveri-ekat.ru/collection/all" }]
+                ],
+                "hidden": [
+                    [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }]
+                ],
+                "funnel_start": [
+                    [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
+                    [{ text: "🛡 Входные сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
+                    [{ text: "🚪 Весь каталог", url: "https://dveri-ekat.ru/collection/all" }]
+                ],
+                "funnel_style": [
+                    [{ text: "🏛 Классика", url: "https://dveri-ekat.ru/collection/all?options[70183][]=493201" }],
+                    [{ text: "✨ Модерн / Хай-тек", url: "https://dveri-ekat.ru/collection/all?options[70183][]=493202" }],
+                    [{ text: "🫥 Минимализм (Скрытые)", url: "https://dveri-ekat.ru/collection/invisible" }]
+                ],
+                "funnel_zamer": [
+                    [{ text: "📏 Записаться на замер", callback_data: "zamer_cmd" }],
+                    [{ text: "📞 Перезвоните мне", callback_data: "leave_request" }]
+                ],
+                "entrance_thermal": [
+                    [{ text: "🛡 Входные с терморазрывом", url: "https://dveri-ekat.ru/collection/seyf-dveri-s-termorazryvom" }],
+                    [{ text: "🚪 Весь каталог сейф-дверей", url: "https://dveri-ekat.ru/collection/seyf-dveri" }]
+                ]
+            };
+
+            const stickyButtons = [
+                [{ text: "📝 Оставить заявку", callback_data: "leave_request" }],
+                [{ text: "📞 Позвонить нам", url: "https://dveri-ekat.ru/page/contacts" }]
+            ];
+
+            if (navButtons[theme]) {
+                extra.reply_markup = {
+                    inline_keyboard: [...navButtons[theme], ...stickyButtons]
+                };
+            }
+        }
+
+        // 3. Clear ANY leaked system tags (extra safety)
+        aiResponse = aiResponse.replace(/\[\[NAV:\s*(.+?)\]\]/g, '').trim();
+        aiResponse = aiResponse.replace(leadRegex, '').trim();
+
+        // 4. History and Limits
+        if (tgSessions[chatId].history.length === 25) {
+            aiResponse += "\n\n⚠️ Обратите внимание: через 5 ответов я начну забывать начало нашего разговора, так как моя память ограничена.";
+        }
+        if (userMessage) {
+            tgSessions[chatId].history.push({ role: 'user', content: userMessage });
+        }
+        tgSessions[chatId].history.push({ role: 'assistant', content: aiResponse });
+        if (tgSessions[chatId].history.length > 30) {
+            tgSessions[chatId].history = tgSessions[chatId].history.slice(-30);
+        }
+
+        // 5. Send
+        await ctx.reply(aiResponse, { parse_mode: 'Markdown', ...extra });
+    };
+
     bot.on('text', async (ctx) => {
         const chatId = ctx.chat.id;
         const userMessage = ctx.message.text;
 
-        if (!tgSessions[chatId]) tgSessions[chatId] = { history: [], interest: null };
+        if (!tgSessions[chatId]) tgSessions[chatId] = { history: [], interest: null, isLeadFlow: false };
 
         try {
             // Simple typing indicator
             await ctx.sendChatAction('typing');
 
-            // Search catalog for context
-            const searchResults = catalogManager.search(userMessage);
-            const productsContext = searchResults.map(p => {
-                const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
-                const urlPart = p.url ? ` Ссылка: ${p.url}` : '';
-                return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''}${urlPart}`;
-            }).join('\n');
+            // Search catalog ONLY if not in lead flow
+            let productsContext = "";
+            if (!tgSessions[chatId].isLeadFlow) {
+                const searchResults = catalogManager.search(userMessage);
+                productsContext = searchResults.map(p => {
+                    const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
+                    const urlPart = p.url ? ` Ссылка: ${p.url}` : '';
+                    return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''}${urlPart}`;
+                }).join('\n');
+            }
 
             // Generate AI response
             let aiResponse = await generateAIResponse(userMessage, tgSessions[chatId].history, productsContext);
@@ -422,129 +551,8 @@ if (botToken) {
             }
             console.log(`AI Response for Telegram: "${aiResponse.substring(0, 100)}..."`);
 
-            // Parse navigation tags for Telegram
-            const match = aiResponse.match(navRegex);
-            let extra = {};
-
-            if (match) {
-                const theme = match[1].trim();
-                aiResponse = aiResponse.replace(navRegex, '').trim();
-
-                // Get buttons from knowledge base
-                // Note: Since this is server-side, we need to make sure KNOWLEDGE_BASE is available
-                // We'll import it or use a simplified map here if it's tricky.
-                // Assuming it's already imported or available via a global/shared file.
-                // For now, let's use a local map for reliability or better, import it.
-
-                // Simplified inline keyboard generation
-                const navButtons = {
-                    "main_menu": [
-                        [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
-                        [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }],
-                        [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
-                    ],
-                    "interior": [
-                        [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
-                        [{ text: "🛠 Фурнитура", url: "https://dveri-ekat.ru/collection/furnitura" }]
-                    ],
-                    "interior_white": [
-                        [{ text: "⚪ Белые / Эмаль", url: "https://dveri-ekat.ru/collection/dveri-emal" }],
-                        [{ text: "🚪 Весь каталог", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }]
-                    ],
-                    "entrance": [
-                        [{ text: "🛡 Сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                        [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
-                    ],
-                    "brands": [
-                        [{ text: "🧱 WestStyle", url: "https://dveri-ekat.ru/collection/weststyle" }],
-                        [{ text: "🌌 Universe", url: "https://dveri-ekat.ru/collection/universe" }],
-                        [{ text: "🎶 Гармония", url: "https://dveri-ekat.ru/collection/garmoniya" }],
-                        [{ text: "🔄 Synergy", url: "https://dveri-ekat.ru/collection/sinerzhi-synergy" }],
-                        [{ text: "🌳 Albero", url: "https://dveri-ekat.ru/collection/albero" }],
-                        [{ text: "🏢 ВФД", url: "https://dveri-ekat.ru/collection/vladimirskaya-fabrika-dverey" }],
-                        [{ text: "⭐ La Stella", url: "https://dveri-ekat.ru/collection/la-stella-la-stella" }],
-                        [{ text: "🚪 Velldoris", url: "https://dveri-ekat.ru/collection/velldoris-velldoris" }],
-                        [{ text: "🛠 Lidman", url: "https://dveri-ekat.ru/collection/lidman" }],
-                        [{ text: "🛡 Аргус", url: "https://dveri-ekat.ru/collection/argus" }],
-                        [{ text: "➕ Еще (весь каталог)", url: "https://dveri-ekat.ru/collection/all" }]
-                    ],
-                    "hidden": [
-                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }]
-                    ],
-                    "funnel_start": [
-                        [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
-                        [{ text: "🛡 Входные сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                        [{ text: "🚪 Весь каталог", url: "https://dveri-ekat.ru/collection/all" }]
-                    ],
-                    "funnel_style": [
-                        [{ text: "🏛 Классика", url: "https://dveri-ekat.ru/collection/all?options[70183][]=493201" }],
-                        [{ text: "✨ Модерн / Хай-тек", url: "https://dveri-ekat.ru/collection/all?options[70183][]=493202" }],
-                        [{ text: "🫥 Минимализм (Скрытые)", url: "https://dveri-ekat.ru/collection/invisible" }]
-                    ],
-                    "funnel_zamer": [
-                        [{ text: "📏 Записаться на замер", callback_data: "zamer_cmd" }],
-                        [{ text: "📞 Перезвоните мне", callback_data: "leave_request" }]
-                    ],
-                    "entrance_thermal": [
-                        [{ text: "🛡 Входные с терморазрывом", url: "https://dveri-ekat.ru/collection/seyf-dveri-s-termorazryvom" }],
-                        [{ text: "🚪 Весь каталог сейф-дверей", url: "https://dveri-ekat.ru/collection/seyf-dveri" }]
-                    ]
-                };
-
-                // Add persistent CTA buttons to almost every menu
-                const stickyButtons = [
-                    [{ text: "📝 Оставить заявку", callback_data: "leave_request" }],
-                    [{ text: "📞 Позвонить нам", url: "https://dveri-ekat.ru/page/contacts" }]
-                ];
-
-                if (navButtons[theme]) {
-                    extra = {
-                        reply_markup: {
-                            inline_keyboard: [...navButtons[theme], ...stickyButtons]
-                        }
-                    };
-                }
-            }
-
-            // Handle Lead Tag in Telegram
-            const leadMatch = aiResponse.match(leadRegex);
-            if (leadMatch) {
-                console.log('>>> [LEAD]: Tag match found for Telegram');
-                try {
-                    const leadData = JSON.parse(leadMatch[1]);
-                    console.log('>>> [LEAD]: Data parsed:', leadData);
-                    const sourceInfo = `TG (@${ctx.from.username || ctx.from.id})`;
-
-                    const phone = String(leadData.phone || '').trim();
-                    const hasPhone = phone && phone !== '-' && !phone.includes('НОМЕР') && !phone.includes('номер') && phone.length > 5;
-
-                    if (hasPhone) {
-                        const interest = tgSessions[chatId]?.interest ? `\n🎯 Интерес: ${tgSessions[chatId].interest}` : '';
-                        const adminMsg = `<b>🔥 НОВЫЙ ЛИД (${sourceInfo})</b>\n\n👤 Имя: ${leadData.name}\n📞 Тел: ${leadData.phone}\n🏠 Адрес: ${leadData.address}${interest}`;
-                        await notifyAdmin(adminMsg);
-                        aiResponse = aiResponse.replace(leadRegex, '\n\n✅ Ваша заявка передана менеджеру! Мы свяжемся с вами в ближайшее время.').trim();
-                    } else {
-                        // No phone — don't notify admin, just close gracefully
-                        aiResponse = aiResponse.replace(leadRegex, '').trim();
-                    }
-                    tgSessions[chatId].history = []; // Clear history after lead to prevent loops
-                } catch (e) { console.error('TG Lead parse error:', e); }
-            }
-
-            // Warning about limit
-            if (tgSessions[chatId].history.length === 25) {
-                aiResponse += "\n\n⚠️ Обратите внимание: через 5 ответов я начну забывать начало нашего разговора, так как моя память ограничена.";
-            }
-
-            // Update session history
-            tgSessions[chatId].history.push({ role: 'user', content: userMessage });
-            tgSessions[chatId].history.push({ role: 'assistant', content: aiResponse });
-            // Keep last 30 messages
-            if (tgSessions[chatId].history.length > 30) tgSessions[chatId].history = tgSessions[chatId].history.slice(-30);
-
-            // Send response back to Telegram
-            await ctx.reply(aiResponse, { parse_mode: 'Markdown', ...extra });
+            // Process response (tags, history, buttons, sending)
+            await processTelegramResponse(ctx, chatId, aiResponse, userMessage);
         } catch (error) {
             console.error('>>> [TELEGRAM BOT ERROR]:', error.message);
             if (error.response) {
@@ -562,10 +570,12 @@ if (botToken) {
 
     bot.command('status', (ctx) => ctx.reply('✅ Бот "Двери Екатеринбурга" работает и готов отвечать на вопросы!'));
 
-    // Remove all menu commands (hides the Menu button and its tooltip completely)
-    bot.telegram.setMyCommands([]).catch(err => console.error('Failed to clear commands:', err));
-    bot.telegram.setChatMenuButton({ menu_button: { type: 'default' } })
-        .catch(err => console.warn('setChatMenuButton:', err.message));
+    // Restore interactive menu and commands
+    bot.telegram.setMyCommands([
+        { command: 'start', description: '🏠 Начать диалог' },
+        { command: 'zamer', description: '📏 Записаться на замер' },
+        { command: 'contacts', description: '📞 Контакты и адрес' }
+    ]).catch(err => console.error('Failed to set commands:', err));
 
 
     const zamerHandler = (ctx) => {
@@ -594,6 +604,8 @@ if (botToken) {
     });
 
     bot.action('leave_request', (ctx) => {
+        const chatId = ctx.chat.id;
+        if (tgSessions[chatId]) tgSessions[chatId].isLeadFlow = true;
         ctx.reply('Отлично! Для оформления заявки, пожалуйста, напишите как вас зовут?');
     });
 
@@ -608,11 +620,9 @@ if (botToken) {
         // Push a hidden context for the AI
         tgSessions[chatId].history.push({ role: 'system', content: `КЛИЕНТ ВЫБРАЛ КАТЕГОРИЮ: ${label}. Поприветствуй его и уточни, какие именно двери его интересуют (стиль, цвет, бюджет). НЕ давай сразу прямые ссылки в первом сообщении.` });
 
-        // Trigger AI response as if the user said the label
+        // Trigger AI response (label serves as "user input")
         const aiResponse = await generateAIResponse(label, tgSessions[chatId].history, "");
-        if (aiResponse) {
-            await ctx.reply(aiResponse, { parse_mode: 'Markdown' });
-        }
+        await processTelegramResponse(ctx, chatId, aiResponse, null);
         await ctx.answerCbQuery();
     };
 
