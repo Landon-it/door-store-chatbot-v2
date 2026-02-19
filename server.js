@@ -35,7 +35,7 @@ const leadRegex = /\[\[LEAD:\s*({.+?})\]\]/;
 const DEFAULT_CONFIG = {
     storeName: "Двери Екатеринбурга",
     operator: {
-        phone: "+7 (999) 340-62-15",
+        phone: "+7 (343) 340-62-15",
         email: "office@dveri-ekat.ru",
         workHours: "Пн-Пт: 10:00-20:00, Сб-Вс: 10:00-19:00"
     }
@@ -136,6 +136,15 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error('OPENROUTER_API_KEY not configured');
 
+    // ── Sitemap-based category check ──────────────────────────────────────
+    const smartCollection = catalogManager.getCollectionUrl(userMessage);
+    if (smartCollection) {
+        productsContext = `РЕКОМЕНДУЕМАЯ КАТЕГОРИЯ:
+- [${smartCollection.title}](${smartCollection.url})
+
+` + productsContext;
+    }
+
     let systemPrompt = `Ты - виртуальный консультант магазина "${config.storeName}".
 СТРОГОЕ ПРАВИЛО ЯЗЫКА:
 - Пиши ТОЛЬКО на русском языке.
@@ -167,8 +176,9 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
     - Придумывать URL с query-параметрами вида ?brand=, ?filter=, ?color= и пр.
     Если клиент спрашивает конкретные модели бренда, но в каталоге нет данных — отправь в коллекцию бренда (если есть в списке выше) или в общий каталог. Не перечисляй выдуманные модели — предложи посмотреть на сайте или приехать в салон.
 
-10. ССЫЛКИ: КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО придумывать или угадывать URL-адреса сайта.
-    а) ТОВАРЫ: Если в блоке «Материалы для ответов» есть строки «Ссылка: https://...» — используй ЭТИ ссылки, чтобы показать клиенту конкретные двери. Это реальные страницы товаров на сайте.
+10. ССЫЛКИ И КАТЕГОРИИ: КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО придумывать или угадывать URL-адреса сайта.
+    а) РЕКОМЕНДУЕМАЯ КАТЕГОРИЯ: Если в блоке «Материалы для ответов» указана «РЕКОМЕНДУЕМАЯ КАТЕГОРИЯ» — это наиболее точное совпадение. ОБЯЗАТЕЛЬНО начни ответ с предложения перейти в этот раздел.
+    б) ТОВАРЫ: Если в блоке «Материалы для ответов» есть строки «Ссылка: https://...» — используй ЭТИ ссылки, чтобы показать клиенту конкретные двери.
     б) РАЗДЕЛЫ КАТАЛОГА (только эти, не придумывать другие):
     - Весь каталог: https://dveri-ekat.ru/collection/all
     - Межкомнатные: https://dveri-ekat.ru/collection/mezhkomnatnye-dveri
@@ -203,16 +213,16 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 
 НАВИГАЦИОННЫЕ ТЕГИ (добавляй в конец сообщения, пользователь видит только красивые кнопки):
 - [[NAV: main_menu]]         — главное меню с категориями (при /start или «покажи всё»)
-- [[NAV: interior]]          — межкомнатные двери (когда интересуют межкомнатные)
-- [[NAV: interior_white]]    — белые/эмалевые двери
-- [[NAV: entrance]]          — входные/сейф-двери
+- [[NAV: interior]]          — межкомнатные двери (ТОЛЬКО для межкомнатных)
+- [[NAV: interior_white]]    — белые/эмалевые межкомнатные двери
+- [[NAV: entrance]]          — входные/сейф-двери (ТОЛЬКО для входных)
 - [[NAV: entrance_thermal]]  — входные с терморазрывом
 - [[NAV: hidden]]            — скрытые двери (invisible)
 - [[NAV: brands]]            — список брендов/производителей (когда спрашивают «какие марки/фабрики»)
 - [[NAV: funnel_start]]      — кнопки «В квартиру / В дом / В офис» (начало воронки)
 - [[NAV: funnel_style]]      — кнопки стиля «Классика / Модерн / Минимализм»
 - [[NAV: funnel_zamer]]      — кнопки «Записаться на замер / Перезвоните мне»
-ВАЖНО: добавляй МАКСИМУМ ОДИН тег [[NAV: ...]] на сообщение.
+ВАЖНО: добавляй МАКСИМУМ ОДИН тег [[NAV: ...]] на сообщение. ЗАПРЕЩЕНО предлагать [[NAV: interior]] если пользователь ищет входные двери.
 
 Материалы для ответов:
 ${productsContext}
@@ -242,9 +252,10 @@ ${productsContext}
 4. ЗАВЕРШЕНИЕ (ЛИД):
    - Предложи замер как логичный следующий шаг. Скажи: "Оставьте ваш номер телефона прямо здесь — менеджер сам свяжется и ответит на все вопросы".
    - ТЕЛЕФОН ОБЯЗАТЕЛЕН. Без телефона тег [[LEAD:]] НЕ ставится. Имя и адрес — опциональны.
-   - Если клиент дал телефон — сразу ставь тег [[LEAD: {"name":"-","phone":"НОМЕР","address":"-"}]] и благодари.
+   - Если клиент дал телефон — сразу ставь тег [[LEAD: {"name":"-","phone":"РЕАЛЬНЫЙ_НОМЕР_КЛИЕНТА","address":"-"}]] и благодари.
+     (В поле "phone" подставляй только цифры номера из сообщения пользователя, не пиши слово "НОМЕР").
    - Если клиент дал имя И телефон — заполни оба поля в теге.
-   - Если клиент отказывается давать телефон — не настаивай, просто скажи что можно позвонить самому: +7 (999) 340-62-15.
+   - Если клиент отказывается давать телефон — не настаивай, просто скажи что можно позвонить самому: +7 (343) 340-62-15.
 
 ОБЩИЕ ПРАВИЛА:
 - НИКОГДА не заканчивай ответ точкой. Всегда задавай наводящий вопрос (кроме этапа благодарности за лид или когда клиент уходит).
@@ -339,7 +350,8 @@ app.post('/api/chat', async (req, res) => {
         if (leadMatch) {
             try {
                 const leadData = JSON.parse(leadMatch[1]);
-                const hasPhone = leadData.phone && leadData.phone !== '-';
+                const phone = String(leadData.phone || '').trim();
+                const hasPhone = phone && phone !== '-' && !phone.includes('НОМЕР') && !phone.includes('номер') && phone.length > 5;
 
                 if (hasPhone) {
                     const adminMsg = `<b>🚀 НОВЫЙ ЛИД (Web)</b>\n\n👤 Имя: ${leadData.name}\n📞 Тел: ${leadData.phone}\n🏠 Адрес: ${leadData.address}`;
@@ -373,9 +385,9 @@ if (botToken) {
         const keyboard = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
-                    [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                    [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }],
+                    [{ text: "🏠 Межкомнатные двери", callback_data: "cat_interior" }],
+                    [{ text: "🛡 Сейф-двери (Входные)", callback_data: "cat_entrance" }],
+                    [{ text: "🫥 Скрытые двери", callback_data: "cat_hidden" }],
                     [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
                 ]
             }
@@ -388,7 +400,7 @@ if (botToken) {
         const chatId = ctx.chat.id;
         const userMessage = ctx.message.text;
 
-        if (!tgSessions[chatId]) tgSessions[chatId] = [];
+        if (!tgSessions[chatId]) tgSessions[chatId] = { history: [], interest: null };
 
         try {
             // Simple typing indicator
@@ -403,7 +415,7 @@ if (botToken) {
             }).join('\n');
 
             // Generate AI response
-            let aiResponse = await generateAIResponse(userMessage, tgSessions[chatId], productsContext);
+            let aiResponse = await generateAIResponse(userMessage, tgSessions[chatId].history, productsContext);
             if (!aiResponse) {
                 console.warn('>>> [AI Warning]: AI returned empty response for Telegram');
                 return ctx.reply('Извините, не смог подобрать ответ. Попробуйте перефразировать вопрос. 🤔');
@@ -461,9 +473,9 @@ if (botToken) {
                         [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }]
                     ],
                     "funnel_start": [
-                        [{ text: "🏠 В квартиру", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
-                        [{ text: "🏡 В частный дом", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                        [{ text: "🏢 В офис", url: "https://dveri-ekat.ru/collection/all" }]
+                        [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
+                        [{ text: "🛡 Входные сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
+                        [{ text: "🚪 Весь каталог", url: "https://dveri-ekat.ru/collection/all" }]
                     ],
                     "funnel_style": [
                         [{ text: "🏛 Классика", url: "https://dveri-ekat.ru/collection/all?options[70183][]=493201" }],
@@ -504,30 +516,32 @@ if (botToken) {
                     console.log('>>> [LEAD]: Data parsed:', leadData);
                     const sourceInfo = `TG (@${ctx.from.username || ctx.from.id})`;
 
-                    const hasPhone = leadData.phone && leadData.phone !== '-';
+                    const phone = String(leadData.phone || '').trim();
+                    const hasPhone = phone && phone !== '-' && !phone.includes('НОМЕР') && !phone.includes('номер') && phone.length > 5;
 
                     if (hasPhone) {
-                        const adminMsg = `<b>🔥 НОВЫЙ ЛИД (${sourceInfo})</b>\n\n👤 Имя: ${leadData.name}\n📞 Тел: ${leadData.phone}\n🏠 Адрес: ${leadData.address}`;
+                        const interest = tgSessions[chatId]?.interest ? `\n🎯 Интерес: ${tgSessions[chatId].interest}` : '';
+                        const adminMsg = `<b>🔥 НОВЫЙ ЛИД (${sourceInfo})</b>\n\n👤 Имя: ${leadData.name}\n📞 Тел: ${leadData.phone}\n🏠 Адрес: ${leadData.address}${interest}`;
                         await notifyAdmin(adminMsg);
                         aiResponse = aiResponse.replace(leadRegex, '\n\n✅ Ваша заявка передана менеджеру! Мы свяжемся с вами в ближайшее время.').trim();
                     } else {
                         // No phone — don't notify admin, just close gracefully
                         aiResponse = aiResponse.replace(leadRegex, '').trim();
                     }
-                    tgSessions[chatId] = []; // Clear history after lead to prevent loops
+                    tgSessions[chatId].history = []; // Clear history after lead to prevent loops
                 } catch (e) { console.error('TG Lead parse error:', e); }
             }
 
             // Warning about limit
-            if (tgSessions[chatId].length === 25) {
+            if (tgSessions[chatId].history.length === 25) {
                 aiResponse += "\n\n⚠️ Обратите внимание: через 5 ответов я начну забывать начало нашего разговора, так как моя память ограничена.";
             }
 
             // Update session history
-            tgSessions[chatId].push({ role: 'user', content: userMessage });
-            tgSessions[chatId].push({ role: 'assistant', content: aiResponse });
+            tgSessions[chatId].history.push({ role: 'user', content: userMessage });
+            tgSessions[chatId].history.push({ role: 'assistant', content: aiResponse });
             // Keep last 30 messages
-            if (tgSessions[chatId].length > 30) tgSessions[chatId] = tgSessions[chatId].slice(-30);
+            if (tgSessions[chatId].history.length > 30) tgSessions[chatId].history = tgSessions[chatId].history.slice(-30);
 
             // Send response back to Telegram
             await ctx.reply(aiResponse, { parse_mode: 'Markdown', ...extra });
@@ -582,6 +596,29 @@ if (botToken) {
     bot.action('leave_request', (ctx) => {
         ctx.reply('Отлично! Для оформления заявки, пожалуйста, напишите как вас зовут?');
     });
+
+    // Category Interest Handlers
+    const handleCategoryChoice = async (ctx, category, label) => {
+        const chatId = ctx.chat.id;
+        if (!tgSessions[chatId]) tgSessions[chatId] = { history: [], interest: null };
+
+        // Store interest in session
+        tgSessions[chatId].interest = label;
+
+        // Push a hidden context for the AI
+        tgSessions[chatId].history.push({ role: 'system', content: `КЛИЕНТ ВЫБРАЛ КАТЕГОРИЮ: ${label}. Поприветствуй его и уточни, какие именно двери его интересуют (стиль, цвет, бюджет). НЕ давай сразу прямые ссылки в первом сообщении.` });
+
+        // Trigger AI response as if the user said the label
+        const aiResponse = await generateAIResponse(label, tgSessions[chatId].history, "");
+        if (aiResponse) {
+            await ctx.reply(aiResponse, { parse_mode: 'Markdown' });
+        }
+        await ctx.answerCbQuery();
+    };
+
+    bot.action('cat_interior', (ctx) => handleCategoryChoice(ctx, 'interior', 'Межкомнатные двери'));
+    bot.action('cat_entrance', (ctx) => handleCategoryChoice(ctx, 'entrance', 'Входные сейф-двери'));
+    bot.action('cat_hidden', (ctx) => handleCategoryChoice(ctx, 'hidden', 'Скрытые двери (Invisible)'));
 
     console.log('Telegram Bot logic initialized');
 

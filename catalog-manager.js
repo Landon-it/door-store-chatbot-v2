@@ -231,6 +231,39 @@ class CatalogManager {
     getProductById(id) {
         return this.products.find(p => p.id === id);
     }
+
+    getCollectionUrl(query) {
+        if (!query || typeof query !== 'string') return null;
+        const lowerQuery = query.toLowerCase();
+
+        const smartCollections = [
+            { keywords: [/ванн/i, /туалет/i, /санузел/i], url: 'https://dveri-ekat.ru/collection/dveri-v-vannuyu', title: 'Двери в ванную и туалет' },
+            { keywords: [/эмаль/i, /эмалит/i], url: 'https://dveri-ekat.ru/collection/dveri-emal', title: 'Эмалированные двери' },
+            { keywords: [/шпон/i], url: 'https://dveri-ekat.ru/collection/dveri-shpon', title: 'Шпонированные двери' },
+            { keywords: [/скрыт/i, /инвиз/i, /invisible/i], url: 'https://dveri-ekat.ru/collection/invisible', title: 'Двери скрытого монтажа (Invisible)' },
+            { keywords: [/входн/i, /сейф/i, /стальн/i, /железн/i, /металлическ/i], url: 'https://dveri-ekat.ru/collection/seyf-dveri', title: 'Входные сейф-двери' },
+            { keywords: [/терморазрыв/i, /для дома/i, /уличн/i], url: 'https://dveri-ekat.ru/collection/dveri-s-termorazryvom', title: 'Двери с терморазрывом' },
+            { keywords: [/белы/i, /светлы/i], url: 'https://dveri-ekat.ru/collection/belye-dveri', title: 'Белые и светлые двери' },
+            { keywords: [/черн/i, /темны/i, /антрацит/i, /венге/i], url: 'https://dveri-ekat.ru/collection/chernye-dveri', title: 'Черные и темные двери' },
+            { keywords: [/серы/i, /бетон/i], url: 'https://dveri-ekat.ru/collection/serye-dveri', title: 'Серые двери' },
+            { keywords: [/стекл/i, /остеклен/i], url: 'https://dveri-ekat.ru/collection/mezhkomnatnye-dveri-so-steklom', title: 'Двери со стеклом' },
+            { keywords: [/глухи/i, /без стекла/i], url: 'https://dveri-ekat.ru/collection/mezhkomnatnye-dveri-gluhiy', title: 'Глухие двери (без стекла)' },
+            { keywords: [/классик/i], url: 'https://dveri-ekat.ru/collection/klassika', title: 'Классические двери' },
+            { keywords: [/современ/i, /модерн/i, /хай-тек/i, /минимализм/i], url: 'https://dveri-ekat.ru/collection/moderno', title: 'Современные двери' }
+        ];
+
+        // Find the first matching collection
+        for (const collection of smartCollections) {
+            if (collection.keywords.some(regex => regex.test(lowerQuery))) {
+                return {
+                    url: collection.url,
+                    title: collection.title
+                };
+            }
+        }
+
+        return null;
+    }
 }
 
 export const catalogManager = new CatalogManager();
