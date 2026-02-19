@@ -16,6 +16,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID;
 
 // Initialize catalog
 catalogManager.init();
@@ -73,21 +75,24 @@ async function sendLeadEmail(leadData) {
 
 // Telegram Admin Notification
 async function notifyAdmin(message) {
-    const adminId = process.env.ADMIN_TELEGRAM_ID;
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!adminId || !botToken) {
-        console.warn('>>> [Notification]: Skipping Telegram admin notify (no ID or Token)');
+    if (!ADMIN_TELEGRAM_ID || !TELEGRAM_BOT_TOKEN) {
+        console.warn('>>> [Notification]: Skipping Telegram admin notify (Missing ADMIN_TELEGRAM_ID or TELEGRAM_BOT_TOKEN)');
         return;
     }
 
     try {
-        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        await fetch(url, {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: adminId, text: message, parse_mode: 'HTML' })
+            body: JSON.stringify({ chat_id: ADMIN_TELEGRAM_ID, text: message, parse_mode: 'HTML' })
         });
-        console.log('>>> [Notification]: Admin notified via Telegram');
+        const data = await res.json();
+        if (data.ok) {
+            console.log('>>> [Notification]: Admin notified via Telegram');
+        } else {
+            console.error('>>> [Notification Error]: Telegram API returned error:', data.description);
+        }
     } catch (e) {
         console.error('>>> [Notification Error]:', e.message);
     }
@@ -224,11 +229,11 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
     }
 
     const data = await response.json();
-    let content = data.choices[0].message.content;
-
-    // Очистка от нежелательных иероглифов и символов (оставляем кириллицу, латиницу, цифры, пунктуацию и эмодзи)
-    // Регулярное выражение фильтрует символы вне указанных диапазонов
     content = content.replace(/[^\u0400-\u04FF\u0020-\u007E\u00A0-\u00FF\u2000-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\s]/g, '');
+
+    if (content.includes('[[LEAD:')) {
+        console.log('>>> [AI Debug]: Lead tag detected in raw content');
+    }
 
     return content;
 }
@@ -394,11 +399,12 @@ if (botToken) {
             }
 
             // Handle Lead Tag in Telegram
-            const leadRegex = /\[\[LEAD:\s*({.+?})\]\]/;
             const leadMatch = aiResponse.match(leadRegex);
             if (leadMatch) {
+                console.log('>>> [LEAD]: Tag match found for Telegram');
                 try {
                     const leadData = JSON.parse(leadMatch[1]);
+                    console.log('>>> [LEAD]: Data parsed:', leadData);
                     const sourceInfo = `TG (@${ctx.from.username || ctx.from.id})`;
                     // await sendLeadEmail({ ...leadData, source: sourceInfo }); // Reserved for future use
 
