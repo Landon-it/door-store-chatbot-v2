@@ -71,6 +71,28 @@ async function sendLeadEmail(leadData) {
     }
 }
 
+// Telegram Admin Notification
+async function notifyAdmin(message) {
+    const adminId = process.env.ADMIN_TELEGRAM_ID;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!adminId || !botToken) {
+        console.warn('>>> [Notification]: Skipping Telegram admin notify (no ID or Token)');
+        return;
+    }
+
+    try {
+        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: adminId, text: message, parse_mode: 'HTML' })
+        });
+        console.log('>>> [Notification]: Admin notified via Telegram');
+    } catch (e) {
+        console.error('>>> [Notification Error]:', e.message);
+    }
+}
+
 // In-memory sessions for Telegram (stores history by chatId)
 const tgSessions = {};
 
@@ -241,6 +263,11 @@ app.post('/api/chat', async (req, res) => {
             try {
                 const leadData = JSON.parse(leadMatch[1]);
                 await sendLeadEmail({ ...leadData, source: 'Web-чат' });
+
+                // Also notify admin via Telegram
+                const adminMsg = `<b>🚀 НОВЫЙ ЛИД (Web)</b>\n\n👤 Имя: ${leadData.name}\n📞 Тел: ${leadData.phone}\n🏠 Адрес: ${leadData.address}`;
+                await notifyAdmin(adminMsg);
+
                 content = content.replace(leadRegex, '\n\n✅ Ваша заявка отправлена менеджеру! Мы скоро свяжемся с вами.').trim();
             } catch (e) { console.error('Lead parse error:', e); }
         }
@@ -274,6 +301,10 @@ if (botToken) {
             }
         };
         await ctx.reply(welcomeMessage, keyboard);
+    });
+
+    bot.command('myid', (ctx) => {
+        ctx.reply(`Ваш Telegram ID: <code>${ctx.chat.id}</code>\nДобавьте его в .env как ADMIN_TELEGRAM_ID`, { parse_mode: 'HTML' });
     });
 
     bot.on('text', async (ctx) => {
@@ -379,17 +410,28 @@ if (botToken) {
             if (leadMatch) {
                 try {
                     const leadData = JSON.parse(leadMatch[1]);
-                    await sendLeadEmail({ ...leadData, source: `Telegram (@${ctx.from.username || ctx.from.id})` });
+                    const sourceInfo = `TG (@${ctx.from.username || ctx.from.id})`;
+                    await sendLeadEmail({ ...leadData, source: sourceInfo });
+
+                    // Also notify admin via Telegram
+                    const adminMsg = `<b>🔥 НОВЫЙ ЛИД (${sourceInfo})</b>\n\n👤 Имя: ${leadData.name}\n📞 Тел: ${leadData.phone}\n🏠 Адрес: ${leadData.address}`;
+                    await notifyAdmin(adminMsg);
+
                     aiResponse = aiResponse.replace(leadRegex, '\n\n✅ Ваша заявка передана менеджеру! Мы свяжемся с вами в ближайшее время.').trim();
                     tgSessions[chatId] = []; // Clear history after lead to prevent loops
                 } catch (e) { console.error('TG Lead parse error:', e); }
             }
 
+            // Warning about limit
+            if (tgSessions[chatId].length === 25) {
+                aiResponse += "\n\n⚠️ Обратите внимание: через 5 ответов я начну забывать начало нашего разговора, так как моя память ограничена.";
+            }
+
             // Update session history
             tgSessions[chatId].push({ role: 'user', content: userMessage });
             tgSessions[chatId].push({ role: 'assistant', content: aiResponse });
-            // Keep last 10 messages
-            if (tgSessions[chatId].length > 10) tgSessions[chatId] = tgSessions[chatId].slice(-10);
+            // Keep last 30 messages
+            if (tgSessions[chatId].length > 30) tgSessions[chatId] = tgSessions[chatId].slice(-30);
 
             // Send response back to Telegram
             await ctx.reply(aiResponse, { parse_mode: 'Markdown', ...extra });

@@ -149,6 +149,9 @@ class DoorStoreChatbot {
             response = this.generateResponse(message);
         }
 
+        if (this.messageHistory.length === 25) {
+            response += "\n\n⚠️ Обратите внимание: через 5 ответов я начну забывать начало нашего разговора, так как моя память ограничена.";
+        }
         this.addMessage(response, 'bot');
 
         this.messageCounter++;
@@ -178,7 +181,7 @@ class DoorStoreChatbot {
                 },
                 body: JSON.stringify({
                     userMessage,
-                    history: this.messageHistory.slice(-10),
+                    history: this.messageHistory.slice(-30),
                     productsContext,
                     config: {
                         storeName: CONFIG.storeName,
