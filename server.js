@@ -131,10 +131,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Core AI response generator (using Google Gemini)
+// Core AI response generator (OpenRouter)
 async function generateAIResponse(userMessage, history = [], productsContext = "", config = DEFAULT_CONFIG) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error('OPENROUTER_API_KEY not configured');
 
     let systemPrompt = `Ты - виртуальный консультант магазина "${config.storeName}".
 СТРОГОЕ ПРАВИЛО ЯЗЫКА:
@@ -201,31 +201,35 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
     console.log(`>>> [AI]: Generating response for message: "${userMessage.substring(0, 50)}..."`);
     console.log(`>>> [AI]: Context length: ${productsContext.length}, History depth: ${history.length}`);
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(geminiUrl, {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://dveri-ekat.ru',
+            'X-Title': 'DveriBot'
+        },
         body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-            generationConfig: {
-                temperature: 0.6,
-                maxOutputTokens: 500
-            }
+            model: 'google/gemini-2.0-flash-exp:free',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage }
+            ],
+            temperature: 0.6,
+            max_tokens: 500
         })
     });
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Gemini API error');
+        throw new Error(errorData.error?.message || 'OpenRouter API error');
     }
 
     const data = await response.json();
-    let content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    let content = data.choices?.[0]?.message?.content || "";
 
     if (!content) {
-        console.warn('>>> [AI Warning]: Gemini returned empty response');
+        console.warn('>>> [AI Warning]: Empty response from OpenRouter');
         return '';
     }
 
