@@ -329,7 +329,7 @@ if (botToken) {
                         [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
                         [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
                         [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }],
-                        [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
+                        [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
                     ],
                     "interior": [
                         [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
@@ -341,7 +341,7 @@ if (botToken) {
                     ],
                     "entrance": [
                         [{ text: "🛡 Сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                        [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
+                        [{ text: "📝 Записаться на замер", callback_data: "zamer_cmd" }]
                     ],
                     "brands": [
                         [{ text: "🧱 WestStyle", url: "https://dveri-ekat.ru/collection/weststyle" }],
@@ -370,8 +370,8 @@ if (botToken) {
                         [{ text: "🫥 Минимализм (Скрытые)", url: "https://dveri-ekat.ru/collection/invisible" }]
                     ],
                     "funnel_zamer": [
-                        [{ text: "📏 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }],
-                        [{ text: "📞 Перезвоните мне", url: "https://dveri-ekat.ru/page/contacts" }]
+                        [{ text: "📏 Записаться на замер", callback_data: "zamer_cmd" }],
+                        [{ text: "📞 Перезвоните мне", callback_data: "leave_request" }]
                     ]
                 };
 
@@ -451,7 +451,7 @@ if (botToken) {
         { command: 'myid', description: 'Узнать мой Telegram ID' }
     ]).catch(err => console.error('Failed to set commands:', err));
 
-    bot.command('zamer', (ctx) => {
+    const zamerHandler = (ctx) => {
         ctx.reply('📏 Записаться на бесплатный замер можно по ссылке ниже или просто оставьте ваши данные прямо здесь в чате.', {
             reply_markup: {
                 inline_keyboard: [
@@ -460,7 +460,10 @@ if (botToken) {
                 ]
             }
         });
-    });
+    };
+
+    bot.command('zamer', zamerHandler);
+    bot.action('zamer_cmd', zamerHandler);
 
     bot.command('contacts', (ctx) => {
         ctx.reply('📍 Наш адрес: Екатеринбург, Базовый пер., 47 (у Леруа Мерлен)\n📞 Телефон: +7 (343) 317-04-20\n✉️ Email: office@dveri-ekat.ru', {
@@ -474,9 +477,6 @@ if (botToken) {
 
     bot.action('leave_request', (ctx) => {
         ctx.reply('Отлично! Для оформления заявки, пожалуйста, напишите как вас зовут?');
-        // We could flag the session here, but the AI will handle "Я хочу оставить заявку" naturally
-        // If we want to be explicit:
-        // tgSessions[ctx.chat.id].push({ role: 'user', content: 'Я хочу оставить заявку' });
     });
 
     console.log('Telegram Bot logic initialized');
