@@ -633,8 +633,17 @@ class DoorStoreChatbot {
         const buttons = KNOWLEDGE_BASE.navigationButtons[theme];
         buttons.forEach(btn => {
             const a = document.createElement('a');
-            a.href = btn.url;
-            a.target = '_blank';
+            if (btn.url.startsWith('#')) {
+                a.href = 'javascript:void(0)';
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.messageInput.value = (btn.url === '#leave-request') ? 'Я хочу оставить заявку' : btn.label;
+                    this.handleSend();
+                });
+            } else {
+                a.href = btn.url;
+                a.target = '_blank';
+            }
             a.className = 'nav-btn';
             a.textContent = btn.label;
             navDiv.appendChild(a);

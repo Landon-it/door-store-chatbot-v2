@@ -7,6 +7,7 @@ import cors from 'cors';
 import { catalogManager } from './catalog-manager.js';
 import cron from 'node-cron';
 import { Telegraf } from 'telegraf';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
@@ -33,6 +34,45 @@ const DEFAULT_CONFIG = {
         workHours: "Пн-Пт: 10:00-20:00, Сб-Вс: 10:00-19:00"
     }
 };
+
+// Email transporter configuration
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+    port: process.env.SMTP_PORT || 587,
+    secure: process.env.SMTP_PORT == 465,
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    }
+});
+
+async function sendLeadEmail(leadData) {
+    const { name, phone, address, message, source = 'Web Chat' } = leadData;
+    const mailOptions = {
+        from: `"Робот ${DEFAULT_CONFIG.storeName}" <${process.env.SMTP_USER || 'no-reply@example.com'}>`,
+        to: DEFAULT_CONFIG.operator.email,
+        subject: `🔥 Новая заявка на двери: ${name || 'Без имени'}`,
+        text: `Получена новая заявка!\n\nИмя: ${name || 'Не указано'}\nТелефон: ${phone || 'Не указано'}\nАдрес/Контакты: ${address || 'Не указано'}\nДоп. инфо: ${message || 'Нет'}\nИсточник: ${source}`,
+        html: `<h3>🚪 Получена новая заявка!</h3>
+               <p><b>👤 Имя:</b> ${name || 'Не указано'}</p>
+               <p><b>📞 Телефон:</b> ${phone || 'Не указано'}</p>
+               <p><b>🏠 Адрес/Контакты:</b> ${address || 'Не указано'}</p>
+               <p><b>📝 Доп. инфо:</b> ${message || 'Нет'}</p>
+               <p><b>🌐 Источник:</b> ${source}</p>`
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('>>> [Email]: Lead sent successfully to', DEFAULT_CONFIG.operator.email);
+        return true;
+    } catch (error) {
+        console.error('>>> [Email Error]:', error.message);
+        return false;
+    }
+}
+
+// In-memory sessions for Telegram (stores history by chatId)
+const tgSessions = {};
 
 // Enable CORS for the store domain and self
 app.use(cors({
@@ -80,9 +120,15 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error('API key not configured');
 
-    let systemPrompt = `Ты - виртуальный консультант магазина "${config.storeName}". Ты специализируешься на:
-- Входных дверях (металлические, деревянные, комбинированные)
-- Межкомнатных дверях (МДФ, массив, эмаль)
+    let systemPrompt = `Ты - виртуальный консультант магазина "${config.storeName}".
+СТРОГОЕ ПРАВИЛО ЯЗЫКА:
+- Пиши ТОЛЬКО на русском языке.
+- Используй только кириллицу, латиницу (для ссылок и брендов) и эмодзи.
+- КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать иероглифы (китайские, японские и др.), арабскую вязь или любые другие непонятные символы. Если сомневаешься в слове — не используй его.
+
+Специализация:
+- Входные двери (металлические, деревянные, комбинированные)
+- Межкомнатные двери (МДФ, массив, эмаль)
 - Скрытых дверях (Invisible, под покраску)
 - Фурнитуре (замки, ручки, петли)
 
@@ -101,10 +147,9 @@ ${productsContext}
 
 Контактная информация:
 - Телефон: [${config.operator.phone}](tel:${config.operator.phone.replace(/[^\d+]/g, '')})
-- Email: [${config.operator.email}](mailto:${config.operator.email})
+- Email: office@dveri-ekat.ru
 - Часы работы: ${config.operator.workHours}
 - Сайт: https://dveri-ekat.ru/
-- Каталог: https://dveri-ekat.ru/collection/all
 - Каталог: https://dveri-ekat.ru/collection/all
 
 Инструкция по продажам и воронке:
@@ -117,6 +162,17 @@ ${productsContext}
    - Этап 3 (Объем): Спроси, сколько дверей нужно.
    - Этап 4 (Закрытие): Предложи запись на бесплатный замер. [[NAV: funnel_zamer]]
 3. Если клиент сомневается, подчеркни, что у нас одна из самых больших выставок в Екатеринбурге (более 400 моделей).
+
+СБОР ДАННЫХ (LEAD CAPTURE):
+Если клиент согласен на замер или хочет консультацию:
+- По очереди узнай его ИМЯ, ТЕЛЕФОН и АДРЕС (или куда выслать инфо).
+- НЕ предлагай писать нам на почту. Скажи: "Оставьте ваше имя и телефон прямо здесь, я передам менеджеру".
+- ТЫ ДОЛЖЕН ЗАПОМИНАТЬ ОТВЕТЫ КЛИЕНТА. Если клиент уже назвал количество дверей или имя — не спрашивай повторно.
+
+ТЕХНИЧЕСКИЙ ТЕГ:
+Как только ты собрал ВСЕ ТРИ поля (Имя, Телефон, Адрес), добавь в САМЫЙ КОНЕЦ сообщения тег:
+[[LEAD: {"name": "...", "phone": "...", "address": "..."}]]
+Заменяй "..." на данные клиента. Если какое-то поле не удалось узнать, ставь "-".
 
 Инструкция по кнопкам навигации:
 Если пользователь проявляет интерес к конкретной категории или этапу воронки, ДОБАВЛЯЙ в конце своего ответа специальный тег [[NAV: тема]].
@@ -133,7 +189,7 @@ ${productsContext}
 Пример: "Для квартиры отлично подойдут наши новые модели WestStyle. Какой стиль вам ближе: современный или классика? [[NAV: funnel_style]]"
 Обязательно используй именно этот формат. Не упоминай тег вслух, просто ставь его в конце.
 
-История диалога:
+История диалога (ИСПОЛЬЗУЙ ЕЁ, ЧТОБЫ НЕ ПОВТОРЯТЬСЯ):
 ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультант'}: ${m.content || m.text}`).join('\n')}
 Клиент: ${userMessage}`;
 
@@ -152,7 +208,7 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userMessage }
             ],
-            temperature: 0.7,
+            temperature: 0.6, // Немного снижаем температуру для большей стабильности
             max_tokens: 500
         })
     });
@@ -163,14 +219,32 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    let content = data.choices[0].message.content;
+
+    // Очистка от нежелательных иероглифов и символов (оставляем кириллицу, латиницу, цифры, пунктуацию и эмодзи)
+    // Регулярное выражение фильтрует символы вне указанных диапазонов
+    content = content.replace(/[^\u0400-\u04FF\u0020-\u007E\u00A0-\u00FF\u2000-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\s]/g, '');
+
+    return content;
 }
 
 // Chat API handler (for web widget)
 app.post('/api/chat', async (req, res) => {
     try {
         const { userMessage, history, productsContext, config } = req.body;
-        const content = await generateAIResponse(userMessage, history, productsContext, config);
+        let content = await generateAIResponse(userMessage, history, productsContext, config);
+
+        // Check for lead tag
+        const leadRegex = /\[\[LEAD:\s*({.+?})\]\]/;
+        const leadMatch = content.match(leadRegex);
+        if (leadMatch) {
+            try {
+                const leadData = JSON.parse(leadMatch[1]);
+                await sendLeadEmail({ ...leadData, source: 'Web-чат' });
+                content = content.replace(leadRegex, '\n\n✅ Ваша заявка отправлена менеджеру! Мы скоро свяжемся с вами.').trim();
+            } catch (e) { console.error('Lead parse error:', e); }
+        }
+
         res.status(200).json({ content });
     } catch (error) {
         console.error('Chat Error:', error);
@@ -203,7 +277,10 @@ if (botToken) {
     });
 
     bot.on('text', async (ctx) => {
+        const chatId = ctx.chat.id;
         const userMessage = ctx.message.text;
+
+        if (!tgSessions[chatId]) tgSessions[chatId] = [];
 
         try {
             // Simple typing indicator
@@ -217,7 +294,7 @@ if (botToken) {
             }).join('\n');
 
             // Generate AI response
-            let aiResponse = await generateAIResponse(userMessage, [], productsContext);
+            let aiResponse = await generateAIResponse(userMessage, tgSessions[chatId], productsContext);
             console.log(`AI Response for Telegram: "${aiResponse.substring(0, 100)}..."`);
 
             // Parse navigation tags for Telegram
@@ -295,6 +372,24 @@ if (botToken) {
                     };
                 }
             }
+
+            // Handle Lead Tag in Telegram
+            const leadRegex = /\[\[LEAD:\s*({.+?})\]\]/;
+            const leadMatch = aiResponse.match(leadRegex);
+            if (leadMatch) {
+                try {
+                    const leadData = JSON.parse(leadMatch[1]);
+                    await sendLeadEmail({ ...leadData, source: `Telegram (@${ctx.from.username || ctx.from.id})` });
+                    aiResponse = aiResponse.replace(leadRegex, '\n\n✅ Ваша заявка передана менеджеру! Мы свяжемся с вами в ближайшее время.').trim();
+                    tgSessions[chatId] = []; // Clear history after lead to prevent loops
+                } catch (e) { console.error('TG Lead parse error:', e); }
+            }
+
+            // Update session history
+            tgSessions[chatId].push({ role: 'user', content: userMessage });
+            tgSessions[chatId].push({ role: 'assistant', content: aiResponse });
+            // Keep last 10 messages
+            if (tgSessions[chatId].length > 10) tgSessions[chatId] = tgSessions[chatId].slice(-10);
 
             // Send response back to Telegram
             await ctx.reply(aiResponse, { parse_mode: 'Markdown', ...extra });

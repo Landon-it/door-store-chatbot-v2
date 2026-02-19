@@ -219,7 +219,7 @@ const KNOWLEDGE_BASE = {
         ],
         "funnel_zamer": [
             { label: "📏 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" },
-            { label: "📞 Перезвоните мне", url: "https://dveri-ekat.ru/page/contacts" }
+            { label: "📝 Оставить заявку в чате", url: "#leave-request" }
         ]
     },
 
