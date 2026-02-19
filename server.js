@@ -68,6 +68,7 @@ async function notifyAdmin(message) {
     }
 
     try {
+        console.log(`>>> [Notification]: Sending Telegram notify to ${ADMIN_TELEGRAM_ID}...`);
         const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
         const res = await fetch(url, {
             method: 'POST',
@@ -76,12 +77,13 @@ async function notifyAdmin(message) {
         });
         const data = await res.json();
         if (data.ok) {
-            console.log('>>> [Notification]: Admin notified via Telegram');
+            console.log('>>> [Notification]: Admin notified via Telegram SUCCESSFULLY');
         } else {
             console.error('>>> [Notification Error]: Telegram API returned error:', data.description);
+            console.error('>>> [Notification Error]: Attempted Chat ID:', ADMIN_TELEGRAM_ID);
         }
     } catch (e) {
-        console.error('>>> [Notification Error]:', e.message);
+        console.error('>>> [Notification Error]: Fetch/Network error:', e.message);
     }
 }
 
@@ -458,8 +460,7 @@ if (botToken) {
     bot.telegram.setMyCommands([
         { command: 'start', description: 'Запустить бота / Главное меню' },
         { command: 'zamer', description: 'Записаться на замер' },
-        { command: 'contacts', description: 'Наши контакты и адрес' },
-        { command: 'myid', description: 'Узнать мой Telegram ID' }
+        { command: 'contacts', description: 'Наши контакты и адрес' }
     ]).catch(err => console.error('Failed to set commands:', err));
 
     const zamerHandler = (ctx) => {
