@@ -210,7 +210,7 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
             'X-Title': 'DveriBot'
         },
         body: JSON.stringify({
-            model: 'deepseek/deepseek-chat:free',
+            model: 'openai/gpt-oss-120b:free',
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userMessage }
