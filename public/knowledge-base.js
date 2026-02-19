@@ -206,6 +206,20 @@ const KNOWLEDGE_BASE = {
         ],
         "hidden": [
             { label: "🫥 Скрытые двери (Invisible)", url: "https://dveri-ekat.ru/collection/invisible" }
+        ],
+        "funnel_start": [
+            { label: "🏠 В квартиру", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" },
+            { label: "🏡 В частный дом", url: "https://dveri-ekat.ru/collection/seyf-dveri" },
+            { label: "🏢 В офис", url: "https://dveri-ekat.ru/collection/all" }
+        ],
+        "funnel_style": [
+            { label: "🏛 Классика", url: "https://dveri-ekat.ru/collection/all?options[70183][]=493201" },
+            { label: "✨ Модерн / Хай-тек", url: "https://dveri-ekat.ru/collection/all?options[70183][]=493202" },
+            { label: "🫥 Минимализм (Скрытые)", url: "https://dveri-ekat.ru/collection/invisible" }
+        ],
+        "funnel_zamer": [
+            { label: "📏 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" },
+            { label: "📞 Перезвоните мне", url: "https://dveri-ekat.ru/page/contacts" }
         ]
     },
 
