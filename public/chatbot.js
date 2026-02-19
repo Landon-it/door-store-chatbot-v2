@@ -15,6 +15,7 @@ class DoorStoreChatbot {
         this.callOperatorButton = document.getElementById('callOperator');
         this.typingIndicator = document.getElementById('typingIndicator');
         this.charCount = document.getElementById('charCount');
+        this.header = document.querySelector('.chat-header');
 
         // Chat state
         this.isOpen = false;
@@ -25,6 +26,27 @@ class DoorStoreChatbot {
     init() {
         // Toggle chat visibility
         this.chatToggle.addEventListener('click', () => this.toggleChat());
+
+        // Add Menu button to header
+        if (this.header) {
+            const menuBtn = document.createElement('button');
+            menuBtn.className = 'header-menu-btn';
+            menuBtn.innerHTML = '📂 Меню';
+            menuBtn.style.padding = '5px 10px';
+            menuBtn.style.borderRadius = '15px';
+            menuBtn.style.background = 'rgba(255,255,255,0.1)';
+            menuBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+            menuBtn.style.color = 'white';
+            menuBtn.style.fontSize = '12px';
+            menuBtn.style.cursor = 'pointer';
+            menuBtn.style.marginLeft = '10px';
+
+            menuBtn.addEventListener('click', () => {
+                this.addMessage('Главное меню магазина:', 'bot');
+                this.renderNavButtons('main_menu', this.messagesWrapper.lastElementChild.querySelector('.message-content'));
+            });
+            this.header.appendChild(menuBtn);
+        }
 
         // Event Listeners
         this.sendButton.addEventListener('click', () => this.handleSend());
@@ -138,9 +160,8 @@ class DoorStoreChatbot {
     }
 
     sendWelcomeMessage() {
-        const greeting = `Здравствуйте! 👋 Я виртуальный консультант магазина "${CONFIG.storeName}".\n\nДавайте подберем идеальные двери для Вашего дома. Какие двери Вас интересуют в первую очередь?`;
+        const greeting = `Здравствуйте! 👋 Я виртуальный консультант магазина "${CONFIG.storeName}".\n\nДавайте подберем идеальные двери для Вашего дома. [[NAV: main_menu]]`;
         this.addMessage(greeting, 'bot');
-        this.addInitialQuickActions();
     }
 
     addInitialQuickActions() {

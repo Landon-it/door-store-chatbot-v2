@@ -175,9 +175,16 @@ const KNOWLEDGE_BASE = {
         "Мастер по установке дверей работает по принципу: 'Семь раз отмерь, один раз... не в ту сторону открывается'."
     ],
     navigationButtons: {
+        "main_menu": [
+            { label: "🏠 Межкомнатные", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" },
+            { label: "🛡 Сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" },
+            { label: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" },
+            { label: "📝 Замер", url: "https://dveri-ekat.ru/page/zamer" }
+        ],
         "interior": [
             { label: "🚪 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" },
             { label: "⚪ Белые / Эмаль", url: "https://dveri-ekat.ru/collection/dveri-emal" },
+            { label: "🫥 Скрытые (Invisible)", url: "https://dveri-ekat.ru/collection/skrytye-dveri" },
             { label: "🛠 Фурнитура", url: "https://dveri-ekat.ru/collection/furnitura" }
         ],
         "entrance": [

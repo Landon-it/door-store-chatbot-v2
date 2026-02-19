@@ -82,7 +82,8 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 
     let systemPrompt = `Ты - виртуальный консультант магазина "${config.storeName}". Ты специализируешься на:
 - Входных дверях (металлические, деревянные, комбинированные)
-- Межкомнатных дверях (МДФ, массив)
+- Межкомнатных дверях (МДФ, массив, эмаль)
+- Скрытых дверях (Invisible, под покраску)
 - Фурнитуре (замки, ручки, петли)
 
 Информация о магазине:
@@ -104,7 +105,7 @@ ${productsContext}
 - Часы работы: ${config.operator.workHours}
 - Сайт: https://dveri-ekat.ru/
 - Каталог: https://dveri-ekat.ru/collection/all
-- Поиск: https://dveri-ekat.ru/search?q=
+- Каталог: https://dveri-ekat.ru/collection/all
 
 Инструкция по кнопкам навигации:
 Если пользователь проявляет интерес к конкретной категории, ДОБАВЛЯЙ в конце своего ответа специальный тег [[NAV: тема]].
@@ -172,7 +173,20 @@ const botToken = process.env.TELEGRAM_BOT_TOKEN;
 if (botToken) {
     const bot = new Telegraf(botToken);
 
-    bot.start((ctx) => ctx.reply('Привет! Я виртуальный помощник магазина "Двери Екатеринбурга". Задайте мне любой вопрос о дверях или фурнитуре. ✨🚪'));
+    bot.start(async (ctx) => {
+        const welcomeMessage = `Здравствуйте! 👋 Я виртуальный консультант магазина "Двери Екатеринбурга".\n\nЯ помогу вам выбрать межкомнатные или входные двери, фурнитуру и отвечу на вопросы об установке.\n\nВыберите интересующий раздел:`;
+        const keyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
+                    [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
+                    [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" }],
+                    [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
+                ]
+            }
+        };
+        await ctx.reply(welcomeMessage, keyboard);
+    });
 
     bot.on('text', async (ctx) => {
         const userMessage = ctx.message.text;
@@ -209,6 +223,12 @@ if (botToken) {
 
                 // Simplified inline keyboard generation
                 const navButtons = {
+                    "main_menu": [
+                        [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
+                        [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
+                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" }],
+                        [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
+                    ],
                     "interior": [
                         [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
                         [{ text: "🛠 Фурнитура", url: "https://dveri-ekat.ru/collection/furnitura" }]
