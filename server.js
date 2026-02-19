@@ -154,7 +154,8 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 2. Используй эмодзи для оформления (🚪🔒🔧💰✨)
 3. Будь дружелюбным и профессиональным
 4. При вопросах о заказе/доставке/точных ценах предлагай связаться с оператором
-5. Отвечай на русском языке
+5. ТЕРМОРАЗРЫВ: Бывает ТОЛЬКО у входных (сейф-дверей). В межкомнатных его нет. Если спрашивают — предлагай входные с терморазрывом. Тэг: [[NAV: entrance_thermal]].
+6. Отвечай на русском языке
 
 Материалы для ответов:
 ${productsContext}
@@ -309,6 +310,10 @@ if (botToken) {
 
             // Generate AI response
             let aiResponse = await generateAIResponse(userMessage, tgSessions[chatId], productsContext);
+            if (!aiResponse) {
+                console.warn('>>> [AI Warning]: AI returned empty response for Telegram');
+                return ctx.reply('Извините, не смог подобрать ответ. Попробуйте перефразировать вопрос. 🤔');
+            }
             console.log(`AI Response for Telegram: "${aiResponse.substring(0, 100)}..."`);
 
             // Parse navigation tags for Telegram
@@ -374,6 +379,10 @@ if (botToken) {
                     "funnel_zamer": [
                         [{ text: "📏 Записаться на замер", callback_data: "zamer_cmd" }],
                         [{ text: "📞 Перезвоните мне", callback_data: "leave_request" }]
+                    ],
+                    "entrance_thermal": [
+                        [{ text: "🛡 Входные с терморазрывом", url: "https://dveri-ekat.ru/collection/seyf-dveri-s-termorazryvom" }],
+                        [{ text: "🚪 Весь каталог сейф-дверей", url: "https://dveri-ekat.ru/collection/seyf-dveri" }]
                     ]
                 };
 
