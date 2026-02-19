@@ -131,10 +131,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Core AI response generator
+// Core AI response generator (using Google Gemini)
 async function generateAIResponse(userMessage, history = [], productsContext = "", config = DEFAULT_CONFIG) {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error('API key not configured');
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
     let systemPrompt = `Ты - виртуальный консультант магазина "${config.storeName}".
 СТРОГОЕ ПРАВИЛО ЯЗЫКА:
@@ -201,30 +201,34 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
     console.log(`>>> [AI]: Generating response for message: "${userMessage.substring(0, 50)}..."`);
     console.log(`>>> [AI]: Context length: ${productsContext.length}, History depth: ${history.length}`);
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(geminiUrl, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage }
-            ],
-            temperature: 0.6, // Немного снижаем температуру для большей стабильности
-            max_tokens: 500
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+            generationConfig: {
+                temperature: 0.6,
+                maxOutputTokens: 500
+            }
         })
     });
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Groq API error');
+        throw new Error(errorData.error?.message || 'Gemini API error');
     }
 
     const data = await response.json();
-    let content = data.choices?.[0]?.message?.content || "";
+    let content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (!content) {
+        console.warn('>>> [AI Warning]: Gemini returned empty response');
+        return '';
+    }
+
     content = content.replace(/[^\u0400-\u04FF\u0020-\u007E\u00A0-\u00FF\u2000-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\s]/g, '');
 
     if (content.includes('[[LEAD:')) {
@@ -233,6 +237,8 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
 
     return content;
 }
+
+
 
 // Chat API handler (for web widget)
 app.post('/api/chat', async (req, res) => {
