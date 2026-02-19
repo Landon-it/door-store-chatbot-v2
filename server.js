@@ -104,8 +104,11 @@ ${productsContext}
 - Поиск: https://dveri-ekat.ru/search?q=
 
 История диалога:
-${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультант'}: ${m.content}`).join('\n')}
+${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультант'}: ${m.content || m.text}`).join('\n')}
 Клиент: ${userMessage}`;
+
+    console.log(`>>> [AI]: Generating response for message: "${userMessage.substring(0, 50)}..."`);
+    console.log(`>>> [AI]: Context length: ${productsContext.length}, History depth: ${history.length}`);
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -146,7 +149,7 @@ app.post('/api/chat', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT} `);
 });
 
 // Telegram Bot Integration
@@ -167,7 +170,7 @@ if (botToken) {
             const searchResults = catalogManager.search(userMessage);
             const productsContext = searchResults.map(p => {
                 const brand = p.properties ? (p.properties['Изготовитель'] || p.properties['Производитель'] || '') : '';
-                return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''}`;
+                return `- ${p.title}: ${p.price} руб.${brand ? ' Бренд: ' + brand : ''} `;
             }).join('\n');
 
             // Generate AI response
@@ -185,12 +188,20 @@ if (botToken) {
         }
     });
 
-    bot.launch();
+    bot.launch()
+        .then(() => console.log('>>> [TELEGRAM]: Bot is successfully polling for updates.'))
+        .catch(err => {
+            console.error('>>> [TELEGRAM ERROR]: Failed to launch bot:', err.message);
+        });
+
+    // Handle bot commands
+    bot.command('status', (ctx) => ctx.reply('✅ Бот "Двери Екатеринбурга" работает и готов отвечать на вопросы!'));
+
     console.log('Telegram Bot logic initialized');
 
     // Enable graceful stop
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
 } else {
-    console.log('TELEGRAM_BOT_TOKEN not provided, skipping Telegram integration');
+    console.warn('!!! [WARNING]: TELEGRAM_BOT_TOKEN not provided, skipping Telegram integration');
 }

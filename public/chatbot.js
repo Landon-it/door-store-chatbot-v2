@@ -484,8 +484,12 @@ class DoorStoreChatbot {
         this.messagesWrapper.appendChild(messageDiv);
         this.scrollToBottom();
 
-        // Store message in history
-        this.messageHistory.push({ text, type, timestamp: new Date() });
+        // Store message in history (using terminology expected by the server)
+        this.messageHistory.push({
+            role: type === 'bot' ? 'assistant' : 'user',
+            content: text,
+            timestamp: new Date()
+        });
     }
 
     addQuickActions(actions = null) {
