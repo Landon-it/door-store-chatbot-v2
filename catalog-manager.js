@@ -108,11 +108,42 @@ class CatalogManager {
         console.log(`Parsed ${this.products.length} valid products.`);
     }
 
-    search(query, limit = 5) {
+    search(query, limit = 7) {
         if (!query || typeof query !== 'string') return [];
         let lowerQuery = query.toLowerCase();
 
-        // 0. Handle Aliases / Synonyms
+        // ── Price range detection ──────────────────────────────────────────
+        // Supports: "до 15000", "до 15 тыс", "от 10000", "10000-20000"
+        let minPrice = 0, maxPrice = Infinity;
+        const priceRange = lowerQuery.match(/(\d[\d\s]*)[-–](\d[\d\s]*)\s*(тыс|т\.р|руб)?/);
+        const priceUpTo = lowerQuery.match(/до\s+(\d[\d\s]*)\s*(тыс|т\.р|руб)?/);
+        const priceFrom = lowerQuery.match(/от\s+(\d[\d\s]*)\s*(тыс|т\.р|руб)?/);
+
+        if (priceRange) {
+            const mult = (priceRange[3] === 'тыс') ? 1000 : 1;
+            minPrice = parseInt(priceRange[1].replace(/\s/g, '')) * mult;
+            maxPrice = parseInt(priceRange[2].replace(/\s/g, '')) * mult;
+        } else {
+            if (priceFrom) {
+                const mult = (priceFrom[2] === 'тыс') ? 1000 : 1;
+                minPrice = parseInt(priceFrom[1].replace(/\s/g, '')) * mult;
+            }
+            if (priceUpTo) {
+                const mult = (priceUpTo[2] === 'тыс') ? 1000 : 1;
+                maxPrice = parseInt(priceUpTo[1].replace(/\s/g, '')) * mult;
+            }
+        }
+
+        // Remove price tokens from text query
+        lowerQuery = lowerQuery
+            .replace(/от\s+\d[\d\s]*(тыс|т\.р|руб)?/g, '')
+            .replace(/до\s+\d[\d\s]*(тыс|т\.р|руб)?/g, '')
+            .replace(/\d[\d\s]*[-–]\d[\d\s]*(тыс|т\.р|руб)?/g, '')
+            .replace(/\s+/g, ' ').trim();
+
+        const hasPriceFilter = minPrice > 0 || maxPrice < Infinity;
+
+        // ── Aliases / Synonyms ────────────────────────────────────────────
         const aliases = {
             'вфд': 'владимирская фабрика дверей',
             'скрытые двери': 'invisible',
@@ -130,28 +161,42 @@ class CatalogManager {
             }
         }
 
-        // 1. Handle brand/factory context
+        // ── Brand context ─────────────────────────────────────────────────
         const brandKeywords = ['фабрика', 'производитель', 'изготовитель', 'бренд'];
         let isBrandSearch = false;
         if (brandKeywords.some(k => lowerQuery.includes(k))) {
             isBrandSearch = true;
-            // Clean up the query to focus on the brand name
-            brandKeywords.forEach(k => {
-                lowerQuery = lowerQuery.replace(k, '').trim();
-            });
+            brandKeywords.forEach(k => { lowerQuery = lowerQuery.replace(k, '').trim(); });
         }
 
-        if (!lowerQuery && isBrandSearch) return []; // If only "фабрика" was typed
+        if (!lowerQuery && isBrandSearch) return [];
 
-        // Ensure products is an array
+        // ── Ensure products array ─────────────────────────────────────────
         if (!Array.isArray(this.products)) {
             console.error('CatalogManager: products is not an array!');
             return [];
         }
 
         try {
-            // Advanced search: check title, category, and properties
-            return this.products
+            // Pre-filter by price (numeric comparison)
+            let pool = this.products;
+            if (hasPriceFilter) {
+                pool = pool.filter(p => {
+                    const numPrice = parseFloat(String(p.price).replace(/\s/g, '').replace(',', '.'));
+                    return !isNaN(numPrice) && numPrice >= minPrice && numPrice <= maxPrice;
+                });
+            }
+
+            // If only price was given (no text), return price-sorted products with URLs
+            if (!lowerQuery && hasPriceFilter) {
+                return pool
+                    .filter(p => p && p.url)
+                    .sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
+                    .slice(0, limit);
+            }
+
+            // Text search with scoring
+            return pool
                 .map(p => {
                     if (!p) return { score: 0 };
                     let score = 0;
@@ -162,7 +207,7 @@ class CatalogManager {
                     if (titleLower.includes(lowerQuery)) score += 10;
                     if (categoryLower.includes(lowerQuery)) score += 5;
 
-                    // Specific boost for brand search in properties
+                    // Boost brand matches in properties
                     if (p.properties) {
                         try {
                             const propsStr = JSON.stringify(p.properties).toLowerCase();
@@ -176,6 +221,7 @@ class CatalogManager {
                 .filter(p => p.score > 0)
                 .sort((a, b) => b.score - a.score)
                 .slice(0, limit);
+
         } catch (error) {
             console.error('CatalogManager Search Error:', error);
             return [];
