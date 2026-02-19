@@ -653,6 +653,38 @@ class DoorStoreChatbot {
         });
 
         container.appendChild(navDiv);
+
+        // Add sticky CTA buttons if not already in a lead-specific theme
+        if (theme !== 'funnel_zamer') {
+            const stickyDiv = document.createElement('div');
+            stickyDiv.className = 'nav-buttons sticky-ctas';
+            stickyDiv.style.marginTop = '8px';
+            stickyDiv.style.borderTop = '1px dashed rgba(0,0,0,0.1)';
+            stickyDiv.style.paddingTop = '8px';
+
+            const ctas = [
+                { label: "📝 Оставить заявку", url: "#leave-request" },
+                { label: "📞 Позвонить", url: "tel:+73433170420" }
+            ];
+
+            ctas.forEach(cta => {
+                const a = document.createElement('a');
+                a.className = 'nav-btn secondary';
+                a.textContent = cta.label;
+                if (cta.url.startsWith('#')) {
+                    a.href = 'javascript:void(0)';
+                    a.addEventListener('click', () => {
+                        this.messageInput.value = 'Я хочу оставить заявку';
+                        this.handleSend();
+                    });
+                } else {
+                    a.href = cta.url;
+                }
+                stickyDiv.appendChild(a);
+            });
+            container.appendChild(stickyDiv);
+        }
+
         this.scrollToBottom();
     }
 
