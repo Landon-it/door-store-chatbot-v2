@@ -235,10 +235,11 @@ ${productsContext}
 
     const MAX_RETRIES = 3;
     const MODELS = [
-        'openai/gpt-oss-120b:free',  // primary
-        'openai/gpt-oss-120b:free',  // retry same
-        'google/gemma-3n-e4b-it'     // fallback
+        'deepseek/deepseek-chat',           // ~$0.14/1M — умный, отличный русский (primary)
+        'google/gemini-2.0-flash-001',      // ~$0.10/1M — быстрый и умный (retry)
+        'meta-llama/llama-3.3-70b-instruct' // ~$0.12/1M — надёжный fallback
     ];
+
     let lastError;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
