@@ -49,21 +49,11 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendLeadEmail(leadData) {
-                <p><b>📝 Доп. инфо:</b> ${message || 'Нет'}</p>
-               <p><b>🌐 Источник:</b> ${source}</p>`
-    };
-
-    try {
-        console.log('>>> [Email Debug]: Lead capture triggered (Email sending is currently DISABLED)');
-        /* 
-        await transporter.sendMail(mailOptions);
-        console.log('>>> [Email]: Lead sent successfully to', DEFAULT_CONFIG.operator.email);
-        */
-        return true;
-    } catch (error) {
-        console.error('>>> [Email Error]:', error.message);
-        return false;
-    }
+    // Email sending is currently disabled per user request.
+    // We log the attempt for debugging purposes.
+    console.log('>>> [Email Debug]: Lead capture triggered (Email sending is currently DISABLED)');
+    console.log('>>> [Email Debug]: Data that would be sent:', JSON.stringify(leadData, null, 2));
+    return true;
 }
 
 // Telegram Admin Notification
@@ -75,20 +65,20 @@ async function notifyAdmin(message) {
 
     try {
         const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: ADMIN_TELEGRAM_ID, text: message, parse_mode: 'HTML' })
-    });
-    const data = await res.json();
-    if (data.ok) {
-        console.log('>>> [Notification]: Admin notified via Telegram');
-    } else {
-        console.error('>>> [Notification Error]: Telegram API returned error:', data.description);
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: ADMIN_TELEGRAM_ID, text: message, parse_mode: 'HTML' })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            console.log('>>> [Notification]: Admin notified via Telegram');
+        } else {
+            console.error('>>> [Notification Error]: Telegram API returned error:', data.description);
+        }
+    } catch (e) {
+        console.error('>>> [Notification Error]:', e.message);
     }
-} catch (e) {
-    console.error('>>> [Notification Error]:', e.message);
-}
 }
 
 // In-memory sessions for Telegram (stores history by chatId)
