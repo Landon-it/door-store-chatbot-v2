@@ -447,6 +447,41 @@
     transform: translateY(-2px);
 }
 
+/* Navigation Buttons */
+.nav-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    background: var(--primary);
+    color: white !important;
+    text-decoration: none;
+    border-radius: var(--radius-xl);
+    font-size: 14px;
+    font-weight: 600;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-btn:hover {
+    background: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    color: white !important;
+}
+
+.nav-btn:active {
+    transform: translateY(0);
+}
+
 /* ===== Input Area ===== */
 .input-container {
     background: var(--bg-tertiary);

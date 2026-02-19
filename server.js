@@ -82,8 +82,11 @@ async function generateAIResponse(userMessage, history = [], productsContext = "
 
     let systemPrompt = `Ты - виртуальный консультант магазина "${config.storeName}". Ты специализируешься на:
 - Входных дверях (металлические, деревянные, комбинированные)
-- Межкомнатных дверях (МДФ, массив, стеклянные)
+- Межкомнатных дверях (МДФ, массив)
 - Фурнитуре (замки, ручки, петли)
+
+Информация о магазине:
+- На нашей выставке в салоне представлено более 400 моделей дверей. Это одна из самых больших экспозиций в Екатеринбурге.
 
 Правила:
 1. Отвечай только на вопросы о дверях и фурнитуре
@@ -102,6 +105,18 @@ ${productsContext}
 - Сайт: https://dveri-ekat.ru/
 - Каталог: https://dveri-ekat.ru/collection/all
 - Поиск: https://dveri-ekat.ru/search?q=
+
+Инструкция по кнопкам навигации:
+Если пользователь проявляет интерес к конкретной категории, ДОБАВЛЯЙ в конце своего ответа специальный тег [[NAV: тема]].
+Темы:
+- interior (межкомнатные двери)
+- interior_white (белые двери/эмаль)
+- entrance (входные/сейф-двери)
+- hidden (скрытые двери)
+- brands (бренды/производители)
+
+Пример: "У нас большой выбор белых дверей. [[NAV: interior_white]]"
+Обязательно используй именно этот формат. Не упоминай тег вслух, просто ставь его в конце.
 
 История диалога:
 ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультант'}: ${m.content || m.text}`).join('\n')}
@@ -174,11 +189,58 @@ if (botToken) {
             }).join('\n');
 
             // Generate AI response
-            const aiResponse = await generateAIResponse(userMessage, [], productsContext);
+            let aiResponse = await generateAIResponse(userMessage, [], productsContext);
             console.log(`AI Response for Telegram: "${aiResponse.substring(0, 100)}..."`);
 
+            // Parse navigation tags for Telegram
+            const navRegex = /\[\[NAV:\s*(.+?)\]\]/;
+            const match = aiResponse.match(navRegex);
+            let extra = {};
+
+            if (match) {
+                const theme = match[1].trim();
+                aiResponse = aiResponse.replace(navRegex, '').trim();
+
+                // Get buttons from knowledge base
+                // Note: Since this is server-side, we need to make sure KNOWLEDGE_BASE is available
+                // We'll import it or use a simplified map here if it's tricky.
+                // Assuming it's already imported or available via a global/shared file.
+                // For now, let's use a local map for reliability or better, import it.
+
+                // Simplified inline keyboard generation
+                const navButtons = {
+                    "interior": [
+                        [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
+                        [{ text: "🛠 Фурнитура", url: "https://dveri-ekat.ru/collection/furnitura" }]
+                    ],
+                    "interior_white": [
+                        [{ text: "⚪ Белые / Эмаль", url: "https://dveri-ekat.ru/collection/dveri-emal" }],
+                        [{ text: "🚪 Весь каталог", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }]
+                    ],
+                    "entrance": [
+                        [{ text: "🛡 Сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
+                        [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
+                    ],
+                    "brands": [
+                        [{ text: "🏢 Фабрика ВФД", url: "https://dveri-ekat.ru/collection/vfd" }],
+                        [{ text: "🛡 Аргус", url: "https://dveri-ekat.ru/collection/argus" }]
+                    ],
+                    "hidden": [
+                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" }]
+                    ]
+                };
+
+                if (navButtons[theme]) {
+                    extra = {
+                        reply_markup: {
+                            inline_keyboard: navButtons[theme]
+                        }
+                    };
+                }
+            }
+
             // Send response back to Telegram
-            await ctx.reply(aiResponse, { parse_mode: 'Markdown' });
+            await ctx.reply(aiResponse, { parse_mode: 'Markdown', ...extra });
         } catch (error) {
             console.error('>>> [TELEGRAM BOT ERROR]:', error.message);
             if (error.response) {

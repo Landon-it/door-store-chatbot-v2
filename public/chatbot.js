@@ -484,6 +484,16 @@ class DoorStoreChatbot {
         this.messagesWrapper.appendChild(messageDiv);
         this.scrollToBottom();
 
+        // Check for navigation tags if it's a bot message
+        if (type === 'bot') {
+            const navData = this.parseNavTags(text);
+            if (navData.theme) {
+                // Remove tag from displayed text
+                messageText.innerHTML = this.formatMessage(navData.text);
+                this.renderNavButtons(navData.theme, content);
+            }
+        }
+
         // Store message in history (using terminology expected by the server)
         this.messageHistory.push({
             role: type === 'bot' ? 'assistant' : 'user',
@@ -579,6 +589,38 @@ class DoorStoreChatbot {
         // Simple fuzzy matching
         const words = pattern.split(' ');
         return words.filter(word => text.includes(word)).length >= words.length * 0.6;
+    }
+
+    parseNavTags(text) {
+        const navRegex = /\[\[NAV:\s*(.+?)\]\]/;
+        const match = text.match(navRegex);
+        if (match) {
+            return {
+                text: text.replace(navRegex, '').trim(),
+                theme: match[1].trim()
+            };
+        }
+        return { text, theme: null };
+    }
+
+    renderNavButtons(theme, container) {
+        if (!KNOWLEDGE_BASE.navigationButtons || !KNOWLEDGE_BASE.navigationButtons[theme]) return;
+
+        const navDiv = document.createElement('div');
+        navDiv.className = 'nav-buttons';
+
+        const buttons = KNOWLEDGE_BASE.navigationButtons[theme];
+        buttons.forEach(btn => {
+            const a = document.createElement('a');
+            a.href = btn.url;
+            a.target = '_blank';
+            a.className = 'nav-btn';
+            a.textContent = btn.label;
+            navDiv.appendChild(a);
+        });
+
+        container.appendChild(navDiv);
+        this.scrollToBottom();
     }
 
     getRandomElement(array) {
