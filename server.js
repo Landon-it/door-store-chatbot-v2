@@ -222,9 +222,11 @@ ${productsContext}
    - Только когда понятно (через 2-3 ответа пользователя), что нужно, предлагай ссылки на подходящие категории или товары.
 
 4. ЗАВЕРШЕНИЕ (ЛИД):
-   - Предложи замер как логичный следующий шаг. Обязательно скажи: "Оставьте ваше имя и телефон прямо здесь, я передам менеджеру".
-   - Собери Имя, Телефон и Адрес (если клиент согласен). По окончании добавь тег [[LEAD: ...]].
-   - Если клиент оставил только телефон (в Fast-Track), заполни в теге только поле phone, остальные ставь "-".
+   - Предложи замер как логичный следующий шаг. Скажи: "Оставьте ваш номер телефона прямо здесь — менеджер сам свяжется и ответит на все вопросы".
+   - ТЕЛЕФОН ОБЯЗАТЕЛЕН. Без телефона тег [[LEAD:]] НЕ ставится. Имя и адрес — опциональны.
+   - Если клиент дал телефон — сразу ставь тег [[LEAD: {"name":"-","phone":"НОМЕР","address":"-"}]] и благодари.
+   - Если клиент дал имя И телефон — заполни оба поля в теге.
+   - Если клиент отказывается давать телефон — не настаивай, просто скажи что можно позвонить самому: +7 (999) 340-62-15.
 
 ОБЩИЕ ПРАВИЛА:
 - НИКОГДА не заканчивай ответ точкой. Всегда задавай наводящий вопрос (кроме этапа благодарности за лид или когда клиент уходит).
@@ -528,15 +530,9 @@ if (botToken) {
 
     bot.command('status', (ctx) => ctx.reply('✅ Бот "Двери Екатеринбурга" работает и готов отвечать на вопросы!'));
 
-    // Set persistent menu commands
-    bot.telegram.setMyCommands([
-        { command: 'start', description: 'Запустить бота / Главное меню' },
-        { command: 'zamer', description: 'Записаться на замер' },
-        { command: 'contacts', description: 'Наши контакты и адрес' }
-    ]).catch(err => console.error('Failed to set commands:', err));
-
-    // Hide 'Menu' button tooltip — switch to standard commands list
-    bot.telegram.setChatMenuButton({ menu_button: { type: 'commands' } })
+    // Remove all menu commands (hides the Menu button and its tooltip completely)
+    bot.telegram.setMyCommands([]).catch(err => console.error('Failed to clear commands:', err));
+    bot.telegram.setChatMenuButton({ menu_button: { type: 'default' } })
         .catch(err => console.warn('setChatMenuButton:', err.message));
 
 
