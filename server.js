@@ -201,45 +201,72 @@ ${history.map(m => `${m.role === 'user' ? 'Клиент' : 'Консультан
     console.log(`>>> [AI]: Generating response for message: "${userMessage.substring(0, 50)}..."`);
     console.log(`>>> [AI]: Context length: ${productsContext.length}, History depth: ${history.length}`);
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://dveri-ekat.ru',
-            'X-Title': 'DveriBot'
-        },
-        body: JSON.stringify({
-            model: 'openai/gpt-oss-120b:free',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage }
-            ],
-            temperature: 0.6,
-            max_tokens: 500
-        })
-    });
+    const MAX_RETRIES = 3;
+    const MODELS = [
+        'openai/gpt-oss-120b:free',  // primary
+        'openai/gpt-oss-120b:free',  // retry same
+        'google/gemma-3n-e4b-it'     // fallback
+    ];
+    let lastError;
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'OpenRouter API error');
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        const model = MODELS[attempt - 1];
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://dveri-ekat.ru',
+                    'X-Title': 'DveriBot'
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage }
+                    ],
+                    temperature: 0.6,
+                    max_tokens: 500
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const errMsg = errorData.error?.message || 'OpenRouter API error';
+                console.warn(`>>> [AI]: Attempt ${attempt}/${MAX_RETRIES} failed: ${errMsg}`);
+                lastError = new Error(errMsg);
+                if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000));
+                continue;
+            }
+
+            const data = await response.json();
+            let content = data.choices?.[0]?.message?.content || "";
+
+            if (!content) {
+                console.warn(`>>> [AI Warning]: Empty response on attempt ${attempt}`);
+                lastError = new Error('Empty response');
+                if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000));
+                continue;
+            }
+
+            content = content.replace(/[^\u0400-\u04FF\u0020-\u007E\u00A0-\u00FF\u2000-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\s]/g, '');
+
+            if (content.includes('[[LEAD:')) {
+                console.log('>>> [AI Debug]: Lead tag detected in raw content');
+            }
+
+            if (attempt > 1) console.log(`>>> [AI]: Succeeded on attempt ${attempt}`);
+            return content;
+
+        } catch (e) {
+            console.warn(`>>> [AI]: Attempt ${attempt}/${MAX_RETRIES} threw: ${e.message}`);
+            lastError = e;
+            if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000));
+        }
     }
 
-    const data = await response.json();
-    let content = data.choices?.[0]?.message?.content || "";
-
-    if (!content) {
-        console.warn('>>> [AI Warning]: Empty response from OpenRouter');
-        return '';
-    }
-
-    content = content.replace(/[^\u0400-\u04FF\u0020-\u007E\u00A0-\u00FF\u2000-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\s]/g, '');
-
-    if (content.includes('[[LEAD:')) {
-        console.log('>>> [AI Debug]: Lead tag detected in raw content');
-    }
-
-    return content;
+    throw lastError;
 }
 
 
