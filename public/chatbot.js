@@ -664,7 +664,7 @@ class DoorStoreChatbot {
 
             const ctas = [
                 { label: "📝 Оставить заявку", url: "#leave-request" },
-                { label: "📞 Позвонить", url: "tel:+73433170420" }
+                { label: "📞 Позвонить", url: "tel:+79993406215" }
             ];
 
             ctas.forEach(cta => {
