@@ -180,7 +180,7 @@ if (botToken) {
                 inline_keyboard: [
                     [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
                     [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                    [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" }],
+                    [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }],
                     [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
                 ]
             }
@@ -226,7 +226,7 @@ if (botToken) {
                     "main_menu": [
                         [{ text: "🏠 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" }],
                         [{ text: "🛡 Сейф-двери (Входные)", url: "https://dveri-ekat.ru/collection/seyf-dveri" }],
-                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" }],
+                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }],
                         [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
                     ],
                     "interior": [
@@ -242,11 +242,20 @@ if (botToken) {
                         [{ text: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }]
                     ],
                     "brands": [
-                        [{ text: "🏢 Фабрика ВФД", url: "https://dveri-ekat.ru/collection/vfd" }],
-                        [{ text: "🛡 Аргус", url: "https://dveri-ekat.ru/collection/argus" }]
+                        [{ text: "🧱 WestStyle", url: "https://dveri-ekat.ru/collection/weststyle" }],
+                        [{ text: "🌌 Universe", url: "https://dveri-ekat.ru/collection/universe" }],
+                        [{ text: "🎶 Гармония", url: "https://dveri-ekat.ru/collection/garmoniya" }],
+                        [{ text: "🔄 Synergy", url: "https://dveri-ekat.ru/collection/sinerzhi-synergy" }],
+                        [{ text: "🌳 Albero", url: "https://dveri-ekat.ru/collection/albero" }],
+                        [{ text: "🏢 ВФД", url: "https://dveri-ekat.ru/collection/vladimirskaya-fabrika-dverey" }],
+                        [{ text: "⭐ La Stella", url: "https://dveri-ekat.ru/collection/la-stella-la-stella" }],
+                        [{ text: "🚪 Velldoris", url: "https://dveri-ekat.ru/collection/velldoris-velldoris" }],
+                        [{ text: "🛠 Lidman", url: "https://dveri-ekat.ru/collection/lidman" }],
+                        [{ text: "🛡 Аргус", url: "https://dveri-ekat.ru/collection/argus" }],
+                        [{ text: "➕ Еще (весь каталог)", url: "https://dveri-ekat.ru/collection/all" }]
                     ],
                     "hidden": [
-                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" }]
+                        [{ text: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" }]
                     ]
                 };
 

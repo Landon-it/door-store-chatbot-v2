@@ -178,13 +178,13 @@ const KNOWLEDGE_BASE = {
         "main_menu": [
             { label: "🏠 Межкомнатные", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" },
             { label: "🛡 Сейф-двери", url: "https://dveri-ekat.ru/collection/seyf-dveri" },
-            { label: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/skrytye-dveri" },
+            { label: "🫥 Скрытые двери", url: "https://dveri-ekat.ru/collection/invisible" },
             { label: "📝 Замер", url: "https://dveri-ekat.ru/page/zamer" }
         ],
         "interior": [
             { label: "🚪 Межкомнатные двери", url: "https://dveri-ekat.ru/collection/mezhkomnatnye-dveri" },
             { label: "⚪ Белые / Эмаль", url: "https://dveri-ekat.ru/collection/dveri-emal" },
-            { label: "🫥 Скрытые (Invisible)", url: "https://dveri-ekat.ru/collection/skrytye-dveri" },
+            { label: "🫥 Скрытые (Invisible)", url: "https://dveri-ekat.ru/collection/invisible" },
             { label: "🛠 Фурнитура", url: "https://dveri-ekat.ru/collection/furnitura" }
         ],
         "entrance": [
@@ -192,12 +192,20 @@ const KNOWLEDGE_BASE = {
             { label: "📝 Записаться на замер", url: "https://dveri-ekat.ru/page/zamer" }
         ],
         "brands": [
-            { label: "🏢 Фабрика ВФД", url: "https://dveri-ekat.ru/collection/vfd" },
+            { label: "🧱 WestStyle", url: "https://dveri-ekat.ru/collection/weststyle" },
+            { label: "🌌 Universe", url: "https://dveri-ekat.ru/collection/universe" },
+            { label: "🎶 Гармония", url: "https://dveri-ekat.ru/collection/garmoniya" },
+            { label: "� Synergy", url: "https://dveri-ekat.ru/collection/sinerzhi-synergy" },
+            { label: "🌳 Albero", url: "https://dveri-ekat.ru/collection/albero" },
+            { label: "🏢 ВФД", url: "https://dveri-ekat.ru/collection/vladimirskaya-fabrika-dverey" },
+            { label: "⭐ La Stella", url: "https://dveri-ekat.ru/collection/la-stella-la-stella" },
+            { label: "� Velldoris", url: "https://dveri-ekat.ru/collection/velldoris-velldoris" },
+            { label: "🛠 Lidman", url: "https://dveri-ekat.ru/collection/lidman" },
             { label: "🛡 Аргус", url: "https://dveri-ekat.ru/collection/argus" },
-            { label: "👑 Sudar", url: "https://dveri-ekat.ru/collection/sudar" }
+            { label: "➕ Еще (весь каталог)", url: "https://dveri-ekat.ru/collection/all" }
         ],
         "hidden": [
-            { label: "🫥 Скрытые двери (Invisible)", url: "https://dveri-ekat.ru/collection/skrytye-dveri" }
+            { label: "🫥 Скрытые двери (Invisible)", url: "https://dveri-ekat.ru/collection/invisible" }
         ]
     },
 
