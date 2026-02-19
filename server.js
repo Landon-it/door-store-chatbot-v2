@@ -28,6 +28,10 @@ cron.schedule('0 0 * * 0', () => {
     catalogManager.updateCatalog();
 });
 
+// Shared Regex Patterns
+const navRegex = /\[\[NAV:\s*(.+?)\]\]/;
+const leadRegex = /\[\[LEAD:\s*({.+?})\]\]/;
+
 const DEFAULT_CONFIG = {
     storeName: "Двери Екатеринбурга",
     operator: {
@@ -234,7 +238,6 @@ app.post('/api/chat', async (req, res) => {
         let content = await generateAIResponse(userMessage, history, productsContext, config);
 
         // Check for lead tag
-        const leadRegex = /\[\[LEAD:\s*({.+?})\]\]/;
         const leadMatch = content.match(leadRegex);
         if (leadMatch) {
             try {
@@ -309,7 +312,6 @@ if (botToken) {
             console.log(`AI Response for Telegram: "${aiResponse.substring(0, 100)}..."`);
 
             // Parse navigation tags for Telegram
-            const navRegex = /\[\[NAV:\s*(.+?)\]\]/;
             const match = aiResponse.match(navRegex);
             let extra = {};
 
