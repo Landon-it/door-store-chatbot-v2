@@ -118,6 +118,7 @@ app.use('/docs', express.static(path.join(__dirname, 'docs')));
 
 // Global request logger for debugging
 app.use((req, res, next) => {
+    if (req.url === '/health') return next(); // Skip logging for health checks
     console.log(`>>> [${new Date().toISOString()}] ${req.method} ${req.url}`);
     if (req.method === 'POST') {
         console.log('>>> Body keys:', Object.keys(req.body));
