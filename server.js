@@ -28,6 +28,19 @@ cron.schedule('0 0 * * 0', () => {
     catalogManager.updateCatalog();
 });
 
+// Self-ping to keep Render awake (Every 10 minutes)
+cron.schedule('*/10 * * * *', async () => {
+    const URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+    console.log(`>>> [KeepAlive]: Pinging ${URL}/health ...`);
+    try {
+        const res = await fetch(`${URL}/health`);
+        if (res.ok) console.log('>>> [KeepAlive]: Ping success');
+        else console.warn(`>>> [KeepAlive]: Ping failed with status ${res.status}`);
+    } catch (e) {
+        console.error(`>>> [KeepAlive]: Ping error: ${e.message}`);
+    }
+});
+
 // Shared Regex Patterns
 const navRegex = /\[\[NAV:\s*(.+?)\]\]/;
 const leadRegex = /\[\[LEAD:\s*({.+?})\]\]/;
@@ -129,6 +142,11 @@ app.get('/api/search', (req, res) => {
 // Root route to serve index.html
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
 });
 
 // Core AI response generator (OpenRouter)
@@ -386,6 +404,13 @@ app.listen(PORT, () => {
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 if (botToken) {
     const bot = new Telegraf(botToken);
+    const WEBHOOK_PATH = `/telegraf/${botToken}`;
+    const URL = process.env.RENDER_EXTERNAL_URL || process.env.URL || '';
+
+    if (URL) {
+        app.use(bot.webhookCallback(WEBHOOK_PATH));
+        console.log(`>>> [TELEGRAM]: Webhook enabled at ${URL}${WEBHOOK_PATH}`);
+    }
 
     bot.start(async (ctx) => {
         const welcomeMessage = `Здравствуйте! 👋 Я виртуальный консультант магазина "Двери Екатеринбурга".\n\nЯ помогу вам выбрать межкомнатные или входные двери, фурнитуру и отвечу на вопросы об установке.\n\nВыберите интересующий раздел:`;
@@ -570,11 +595,17 @@ if (botToken) {
         }
     });
 
-    bot.launch()
-        .then(() => console.log('>>> [TELEGRAM]: Bot is successfully polling for updates.'))
-        .catch(err => {
-            console.error('>>> [TELEGRAM ERROR]: Failed to launch bot:', err.message);
-        });
+    if (URL) {
+        bot.telegram.setWebhook(`${URL}${WEBHOOK_PATH}`)
+            .then(() => console.log('>>> [TELEGRAM]: Webhook successfully set.'))
+            .catch(err => console.error('>>> [TELEGRAM ERROR]: Failed to set webhook:', err.message));
+    } else {
+        bot.launch()
+            .then(() => console.log('>>> [TELEGRAM]: Bot is successfully polling for updates (Local/Fallback).'))
+            .catch(err => {
+                console.error('>>> [TELEGRAM ERROR]: Failed to launch bot:', err.message);
+            });
+    }
 
     bot.command('status', (ctx) => ctx.reply('✅ Бот "Двери Екатеринбурга" работает и готов отвечать на вопросы!'));
 
