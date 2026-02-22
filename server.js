@@ -19,8 +19,8 @@ const PORT = process.env.PORT || 3000;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID;
 
-// Initialize catalog
-catalogManager.init();
+// Initialize catalog (deferred to app.listen to avoid Render Timeout)
+// catalogManager.init();
 
 // Schedule catalog update once a week (Sundays at 00:00)
 cron.schedule('0 0 * * 0', () => {
@@ -112,6 +112,32 @@ app.use(cors({
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+// Базовая авторизация (Basic Auth) для защиты веб-интерфейса
+const AUTH_USER = process.env.AUTH_USER;
+const AUTH_PASS = process.env.AUTH_PASS;
+
+if (AUTH_USER && AUTH_PASS) {
+    app.use((req, res, next) => {
+        // Пропускаем API, вебхуки и health-check (чтобы бот продолжал работать на основном сайте и в ТГ)
+        if (req.path.startsWith('/api/') || req.path.startsWith('/telegraf/') || req.path === '/health') {
+            return next();
+        }
+
+        const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+        const [login, ...passwordParts] = Buffer.from(b64auth, 'base64').toString().split(':');
+        const password = passwordParts.join(':');
+
+        if (login && password && login === AUTH_USER && password === AUTH_PASS) {
+            return next();
+        }
+
+        res.set('WWW-Authenticate', 'Basic realm="Bot Secure Panel"');
+        res.status(401).send('Требуется авторизация');
+    });
+} else {
+    console.warn('[Security] Переменные AUTH_USER и AUTH_PASS не заданы. Демо-интерфейс открыт для всех!');
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/docs', express.static(path.join(__dirname, 'docs')));
@@ -398,7 +424,10 @@ app.post('/api/chat', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT} `);
+    console.log(`Server is running on port ${PORT}`);
+    // Запускаем тяжелый парсинг каталога только ПОСЛЕ того, 
+    // как сервер поднялся и может отвечать на health-check от Render (за < 5 сек)
+    catalogManager.init().catch(e => console.error("Catalog init error:", e));
 });
 
 // Telegram Bot Integration

@@ -7,3 +7,6 @@ node_modules/
 .vercel
 docs/
 mcp_config.json
+
+# Documentation
+terminal_fix_guide.md
